@@ -1,0 +1,3952 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CSM AI-prompted Browser Game</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/loaders/GLTFLoader.js"></script>
+  <style>
+    /* [Styles remain unchanged from your original code] */
+    body { 
+      margin: 0; 
+      overflow: hidden; 
+      font-family: 'Orbitron', sans-serif; 
+      background: #1a1a1a;
+    }
+    #logo {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      width: 100px;
+      height: auto;
+      max-width: 150px;
+      max-height: 150px;
+      pointer-events: none;
+      opacity: 0.8;
+      transition: opacity 0.3s ease;
+    }
+    #logo:hover { opacity: 1; }
+    #playerInfo {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      background: rgba(20, 20, 20, 0.85);
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 10px 15px;
+      color: #ddd;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(5px);
+      z-index: 100;
+      font-weight: bold;
+    }
+    #scoreboard {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      color: #fff;
+      background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(30, 30, 30, 0.7));
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      width: 220px;
+      font-size: 14px;
+      line-height: 1.5;
+      text-align: left;
+      border-right: 4px solid #ff0000;
+      transition: transform 0.2s ease;
+    }
+    #scoreboard:hover { transform: scale(1.05); }
+    #scoreboard br { margin-bottom: 5px; }
+    #profileContainer {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    #profileImage {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #00ff00;
+      margin-right: 10px;
+      box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+    }
+    #profileInfo { flex: 1; }
+    #profileName {
+      font-weight: bold;
+      color: #00ff00;
+      margin-bottom: 3px;
+    }
+    #profileStats {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    #waitingScreen {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      background: linear-gradient(135deg, rgba(20, 20, 20, 0.95), rgba(50, 50, 50, 0.85));
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      text-align: center;
+      font-size: 18px;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      border: 2px solid #ffd700;
+      display: none;
+      animation: fadeIn 0.5s ease;
+    }
+    #waitingScreen span {
+      color: #ffd700;
+      font-weight: bold;
+    }
+    #matchEndScreen {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #fff;
+      background: linear-gradient(135deg, rgba(20, 20, 20, 0.95), rgba(50, 50, 50, 0.85));
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      text-align: center;
+      font-size: 20px;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      border: 2px solid #ff4500;
+      display: none;
+      animation: fadeIn 0.5s ease;
+    }
+    #matchEndScreen h2 {
+      margin: 0 0 20px;
+      font-size: 28px;
+      color: #ff4500;
+      text-shadow: 0 0 10px rgba(255, 69, 0, 0.8);
+    }
+    #finalScores {
+      margin: 20px 0;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+    #playAgain {
+      background: linear-gradient(135deg, #ff4500, #ff8c00);
+      color: #fff;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: 0 4px 15px rgba(255, 69, 0, 0.5);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    #playAgain:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 20px rgba(255, 69, 0, 0.8);
+    }
+    #crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      transition: all 0.2s ease;
+      z-index: 1000;
+    }
+
+    #scope {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      border: 2px solid #000;
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(0, 0, 0, 0.7);
+      background: radial-gradient(circle, rgba(200, 200, 200, 0.1) 0%, rgba(0, 0, 0, 0.7) 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #scope::before, #scope::after {
+      content: '';
+      position: absolute;
+      background-color: rgba(0, 0, 0, 0.7);
+    }
+
+    #scope::before {
+      width: 2px;
+      height: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    #scope::after {
+      width: 100%;
+      height: 2px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    #scopeCenter {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: rgba(255, 0, 0, 0.7);
+      box-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+      transition: all 0.1s ease;
+    }
+
+    #scopeRings {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 0, 0, 0.5);
+      box-sizing: border-box;
+    }
+
+    #scopeRings::before {
+      content: '';
+      position: absolute;
+      width: 70%;
+      height: 70%;
+      top: 15%;
+      left: 15%;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 0, 0, 0.5);
+    }
+
+    #scopeRings::after {
+      content: '';
+      position: absolute;
+      width: 40%;
+      height: 40%;
+      top: 30%;
+      left: 30%;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 0, 0, 0.5);
+    }
+
+    #scopeMarks {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+    }
+
+    .scopeMark {
+      position: absolute;
+      background-color: rgba(0, 0, 0, 0.7);
+    }
+
+    .scopeMarkH {
+      width: 10px;
+      height: 1px;
+    }
+
+    .scopeMarkV {
+      width: 1px;
+      height: 10px;
+    }
+
+    #crosshair.active #scopeCenter {
+      background-color: rgba(255, 255, 0, 0.9);
+      box-shadow: 0 0 10px rgba(255, 255, 0, 0.7);
+    }
+
+    #scopeOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, transparent 100px, rgba(0, 0, 0, 0.85) 200px);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 999;
+    }
+
+    body.scoped #scopeOverlay {
+      opacity: 1;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translate(-50%, -60%); }
+      to { opacity: 1; transform: translate(-50%, -50%); }
+    }
+    .toggle-menu {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      z-index: 10;
+    }
+    #toggleAIHeadBtn {
+      background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+      color: #00ff00;
+      border: 1px solid #333;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    #toggleAIHeadBtn:hover {
+      background: linear-gradient(135deg, #333, #222);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+    #toggleAIHeadBtn .toggle-icon {
+      display: inline-block;
+      transition: transform 0.3s ease;
+      font-size: 12px;
+    }
+    #toggleAIHeadBtn.open .toggle-icon {
+      transform: rotate(180deg);
+    }
+    #aiHeadContent {
+      background: rgba(20, 20, 20, 0.95);
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 20px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(5px);
+    }
+    #aiHeadContent input[type="text"] {
+      width: 100%;
+      padding: 10px 12px;
+      margin-bottom: 15px;
+      border: 1px solid #444;
+      background: #1a1a1a;
+      color: #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+    #aiHeadContent input[type="text"]:focus {
+      border-color: #00ff00;
+      box-shadow: 0 0 0 2px rgba(0, 255, 0, 0.2);
+      outline: none;
+    }
+    #aiHeadContent button {
+      background: linear-gradient(135deg, #222, #111);
+      color: #00ff00;
+      border: 1px solid #333;
+      padding: 8px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s ease;
+      margin-right: 5px;
+      margin-bottom: 5px;
+    }
+    #aiHeadContent button:hover {
+      background: linear-gradient(135deg, #333, #222);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    }
+    .tab-container {
+      display: flex;
+      margin: 20px 0 15px;
+      border-bottom: 1px solid #333;
+    }
+    .tab {
+      padding: 10px 15px;
+      background: linear-gradient(to bottom, #222, #1a1a1a);
+      cursor: pointer;
+      border: 1px solid #333;
+      border-bottom: none;
+      border-radius: 5px 5px 0 0;
+      margin-right: 5px;
+      transition: all 0.3s ease;
+      color: #aaa;
+      font-size: 14px;
+    }
+    .tab:hover {
+      background: linear-gradient(to bottom, #2a2a2a, #222);
+      color: #ddd;
+    }
+    .tab.active {
+      background: linear-gradient(to bottom, #333, #222);
+      border-bottom: 1px solid #222;
+      margin-bottom: -1px;
+      color: #00ff00;
+      font-weight: bold;
+    }
+    .tab-content {
+      display: none;
+      padding: 20px;
+      background: rgba(30, 30, 30, 0.8);
+      border: 1px solid #333;
+      border-top: none;
+      border-radius: 0 0 5px 5px;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .tab-content.active {
+      display: block;
+    }
+    #generateHeadBtn, #loadSessionBtn {
+      width: 100%;
+      padding: 12px;
+      margin-top: 5px;
+      background: linear-gradient(135deg, #005500, #003300);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+      transition: all 0.3s ease;
+    }
+    #generateHeadBtn:hover, #loadSessionBtn:hover {
+      background: linear-gradient(135deg, #007700, #005500);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+      transform: translateY(-1px);
+    }
+    #saveApiKeyBtn {
+      background: linear-gradient(135deg, #333, #222);
+      color: #ddd;
+      padding: 8px 15px;
+      border-radius: 4px;
+      border: 1px solid #444;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    #saveApiKeyBtn:hover {
+      background: linear-gradient(135deg, #444, #333);
+      color: white;
+    }
+    #toggleAIHeadBtn.processing {
+      background: linear-gradient(135deg, #333, #222);
+      color: #aaa;
+      cursor: wait;
+    }
+    #aiHeadContent a {
+      color: #00ff00;
+      text-decoration: none;
+      transition: all 0.3s ease;
+    }
+    #aiHeadContent a:hover {
+      text-decoration: underline;
+      color: #00cc00;
+    }
+    /* Controls UI styling */
+    #controlsPanel {
+      position: absolute;
+      bottom: 70px;
+      left: 230px;
+      background: rgba(20, 20, 20, 0.85);
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 15px;
+      color: #ddd;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(5px);
+      z-index: 101;
+      max-width: 300px;
+      transition: all 0.3s ease;
+      display: none;
+    }
+    
+    #controlsPanel h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      color: #00ff00;
+      font-size: 16px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 8px;
+    }
+    
+    #controlsPanel ul {
+      list-style-type: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    #controlsPanel li {
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+    }
+    
+    #controlsPanel .key {
+      display: inline-block;
+      background: linear-gradient(135deg, #333, #222);
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 3px 8px;
+      margin-right: 10px;
+      font-family: monospace;
+      font-weight: bold;
+      min-width: 20px;
+      text-align: center;
+      box-shadow: 0 2px 3px rgba(0, 0, 0, 0.3);
+    }
+    
+    #toggleControlsBtn {
+      position: absolute;
+      bottom: 20px;
+      left: 230px;
+      background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+      color: #00ff00;
+      border: 1px solid #333;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    #toggleControlsBtn:hover {
+      background: linear-gradient(135deg, #333, #222);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+    
+    #toggleControlsBtn .toggle-icon {
+      display: inline-block;
+      transition: transform 0.3s ease;
+      font-size: 12px;
+    }
+    
+    #toggleControlsBtn.open .toggle-icon {
+      transform: rotate(180deg);
+    }
+
+    /* Base positioning for buttons */
+    #aiHeadMenu {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      z-index: 100;
+      transition: all 0.3s ease;
+    }
+    
+    #toggleControlsBtn {
+      position: absolute;
+      bottom: 20px;
+      left: 230px; /* Default position */
+      background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+      color: #00ff00;
+      border: 1px solid #333;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    /* Position the panels */
+    #controlsPanel {
+      position: absolute;
+      bottom: 70px;
+      left: 230px; /* Default position */
+      background: rgba(20, 20, 20, 0.85);
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 15px;
+      color: #ddd;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(5px);
+      z-index: 101;
+      max-width: 300px;
+      transition: all 0.3s ease;
+      display: none;
+    }
+    
+    #aiHeadContent {
+      position: absolute;
+      bottom: 70px;
+      left: 20px;
+      background: rgba(20, 20, 20, 0.95);
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 20px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(5px);
+      z-index: 101;
+      width: 300px;
+      display: none;
+      transition: all 0.3s ease;
+    }
+
+    /* Add styling for the pointer hint */
+    #pointerHint {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.7);
+      color: #00ff00;
+      padding: 15px 20px;
+      border-radius: 5px;
+      font-family: 'Orbitron', sans-serif;
+      text-align: center;
+      z-index: 1000;
+      pointer-events: none;
+      display: none;
+      border: 1px solid #00ff00;
+      box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* Add blood particle styling */
+    .blood-particle {
+      position: absolute;
+      background: radial-gradient(circle, #ff0000 20%, #800000);
+      border-radius: 50%;
+      opacity: 0.9;
+      pointer-events: none;
+      z-index: 100;
+      transition: opacity 0.5s ease-out, transform 0.7s ease-out;
+    }
+    
+    /* Completely revised damage overlay styling */
+    #damageOverlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(255, 0, 0, 0.3);
+      pointer-events: none;
+      display: none;
+      z-index: 99;
+    }
+    
+    @keyframes fadeRedOverlay {
+      from { opacity: 0.7; }
+      to { opacity: 0; }
+    }
+    
+    /* Add styling for winner celebration */
+    .celebration-text {
+      font-size: 32px;
+      font-weight: bold;
+      color: gold;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+      animation: celebrateText 2s infinite;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+    @keyframes celebrateText {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    
+    .fireworks {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 98;
+      background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.3) 100%);
+    }
+    
+    /* Add styles for avatar rebirth counter */
+    .avatar-stats {
+      display: flex;
+      flex-direction: column;
+      margin-top: 5px;
+      font-size: 12px;
+    }
+    
+    .rebirth-counter {
+      display: flex;
+      align-items: center;
+      margin-bottom: 5px;
+      color: #00ffff;
+    }
+    
+    .wins-counter {
+      display: flex;
+      align-items: center;
+      color: #ffd700;
+    }
+    
+    .stat-icon {
+      margin-right: 3px;
+      font-size: 14px;
+    }
+    
+    .stat-value {
+      font-weight: bold;
+    }
+    
+    .stat-label {
+      margin-left: 5px;
+    }
+    
+    /* Add styles for the Enter Game World button */
+    #enterGameButton {
+      position: relative; /* Change from fixed to relative */
+      transform: none; /* Remove the transform that was centering it */
+      padding: 20px 40px;
+      font-size: 24px;
+      font-family: 'Orbitron', sans-serif;
+      color: #fff;
+      background: linear-gradient(135deg, #3498db, #2980b9);
+      border: 3px solid #fff;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(52, 152, 219, 0.7), 0 0 40px rgba(52, 152, 219, 0.4);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      z-index: 1000;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      outline: none;
+      animation: pulse 2s infinite;
+      margin-top: 20px; /* Add margin to move button down */
+    }
+    
+    #enterGameButton:hover {
+      background: linear-gradient(135deg, #2980b9, #3498db);
+      box-shadow: 0 0 30px rgba(52, 152, 219, 0.9), 0 0 50px rgba(52, 152, 219, 0.6);
+      transform: scale(1.05); /* Update transform to just scale */
+    }
+    
+    #enterGameButton:active {
+      transform: scale(0.95); /* Update transform to just scale */
+    }
+    
+    #connectionOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.8);
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding-top: 100px; /* Add padding to move content down */
+    }
+    
+    #connectionOverlay h1 {
+      font-family: 'Orbitron', sans-serif;
+      color: #fff;
+      font-size: 36px;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+    #connectionOverlay p {
+      font-family: 'Orbitron', sans-serif;
+      color: #ccc;
+      font-size: 18px;
+      margin-bottom: 40px;
+      text-align: center;
+      max-width: 600px;
+    }
+    
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 20px rgba(52, 152, 219, 0.7), 0 0 40px rgba(52, 152, 219, 0.4);
+      }
+      50% {
+        box-shadow: 0 0 30px rgba(52, 152, 219, 0.9), 0 0 60px rgba(52, 152, 219, 0.6);
+      }
+      100% {
+        box-shadow: 0 0 20px rgba(52, 152, 219, 0.7), 0 0 40px rgba(52, 152, 219, 0.4);
+      }
+    }
+
+    /* Add styles for the overlay crosshair */
+    #overlayCrosshair {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 40px;
+      height: 40px;
+      pointer-events: none;
+      z-index: 1001;
+      opacity: 0.3;
+    }
+    
+    #overlayCrosshair::before,
+    #overlayCrosshair::after {
+      content: '';
+      position: absolute;
+      background-color: rgba(255, 255, 255, 0.5);
+    }
+    
+    #overlayCrosshair::before {
+      width: 2px;
+      height: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    
+    #overlayCrosshair::after {
+      width: 40px;
+      height: 2px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+  </style>
+</head>
+<body>
+  <!-- Add connection overlay and enter game button -->
+  <div id="connectionOverlay">
+    <div id="overlayCrosshair"></div>
+    <h1>COMBAT SIMULATOR</h1>
+    <p>Ready to enter the battlefield? Click the button below to join the game world.</p>
+    <button id="enterGameButton">Enter Game World</button>
+  </div>
+  
+  <div id="playerInfo">Team: Unknown | Health: 100</div>
+  <div id="scoreboard">
+    <div id="profileContainer">
+      <img id="profileImage" src="default_avatar.png" alt="Profile">
+      <div id="profileInfo">
+        <div id="profileName">Player</div>
+        <div id="profileStats">Waiting...</div>
+      </div>
+    </div>
+    <div id="scoreboardContent">Waiting for opponent...</div>
+  </div>
+  <div id="damageOverlay"></div>
+  <div id="aiHeadMenu" class="toggle-menu">
+    <button id="toggleAIHeadBtn">GENERATE AI AVATAR <span class="toggle-icon">▼</span></button>
+    <div id="aiHeadContent" class="menu-content" style="display: none;">
+      <p style="margin-bottom: 15px; font-size: 13px; color: #aaa;">Login to get your API key: <a href="https://3d.csm.ai" target="_blank">3d.csm.ai</a></p>
+      <input type="text" id="apiKeyInput" placeholder="Enter CSM API Key" />
+      <button id="saveApiKeyBtn">Save API Key</button>
+      
+      <div class="tab-container">
+        <div class="tab active" data-tab="prompt">Generate from prompt</div>
+        <div class="tab" data-tab="session">Use session ID</div>
+      </div>
+      
+      <div id="promptInputContainer" class="tab-content active">
+        <input type="text" id="promptInput" placeholder="Enter head description prompt" />
+        <button id="generateHeadBtn">Generate Head</button>
+      </div>
+      
+      <div id="sessionInputContainer" class="tab-content">
+        <input type="text" id="sessionInput" placeholder="Enter session ID" />
+        <button id="loadSessionBtn">Load Session</button>
+      </div>
+    </div>
+  </div>
+  <div id="controlsPanel">
+    <h3>GAME CONTROLS</h3>
+    <ul>
+      <li><span class="key">W</span> Move forward</li>
+      <li><span class="key">A</span> Move left</li>
+      <li><span class="key">S</span> Move backward</li>
+      <li><span class="key">D</span> Move right</li>
+      <li><span class="key">Space</span> Jump</li>
+      <li><span class="key">Ctrl</span> Crouch</li>
+      <li><span class="key">Click</span> Shoot</li>
+      <li><span class="key">Mouse</span> Look around</li>
+    </ul>
+  </div>
+  <button id="toggleControlsBtn">SHOW CONTROLS <span class="toggle-icon">▼</span></button>
+  <div id="waitingScreen">
+    Waiting for opponent: <span id="waitingCount">0/2</span><br>
+    Active Rooms: <span id="roomCount">0</span><br>
+    Time: <span id="waitTimer">30</span> of 30s<br>
+    <span id="waitMessage">After 30s: Free play if alone</span>
+  </div>
+  <div id="matchEndScreen">
+    <h2>Match Ended</h2>
+    <div id="finalScores"></div>
+    <button id="playAgain">Play Again</button>
+  </div>
+  <div id="scopeOverlay"></div>
+  <div id="crosshair">
+    <div id="scope">
+      <div id="scopeRings"></div>
+      <div id="scopeMarks">
+        <!-- Top marks -->
+        <div class="scopeMark scopeMarkV" style="top: 10px; left: 50%; transform: translateX(-50%);"></div>
+        <div class="scopeMark scopeMarkV" style="top: 30px; left: 50%; transform: translateX(-50%);"></div>
+        <!-- Bottom marks -->
+        <div class="scopeMark scopeMarkV" style="bottom: 10px; left: 50%; transform: translateX(-50%);"></div>
+        <div class="scopeMark scopeMarkV" style="bottom: 30px; left: 50%; transform: translateX(-50%);"></div>
+        <!-- Left marks -->
+        <div class="scopeMark scopeMarkH" style="left: 10px; top: 50%; transform: translateY(-50%);"></div>
+        <div class="scopeMark scopeMarkH" style="left: 30px; top: 50%; transform: translateY(-50%);"></div>
+        <!-- Right marks -->
+        <div class="scopeMark scopeMarkH" style="right: 10px; top: 50%; transform: translateY(-50%);"></div>
+        <div class="scopeMark scopeMarkH" style="right: 30px; top: 50%; transform: translateY(-50%);"></div>
+      </div>
+      <div id="scopeCenter"></div>
+    </div>
+  </div>
+  <img id="logo" src="logo.png">
+  <div id="opponentLeftScreen">
+    <h2>Opponent Left!</h2>
+    <div id="opponentLeftMessage"></div>
+    <div id="finalScores"></div>
+    <button id="waitForNew">Wait for New Opponent (30s)</button>
+    <button id="freePlay">Enter Free Play</button>
+  </div>
+  <div id="pointerHint" style="display: none;">Press ESC to use menus<br>Click to resume game</div>
+  <script>
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xffffff);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Scene setup (unchanged)
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    directionalLight.position.set(15, 25, 15);
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.width = 1024;
+    directionalLight.shadow.mapSize.height = 1024;
+    directionalLight.shadow.camera.near = 0.5;
+    directionalLight.shadow.camera.far = 50;
+    directionalLight.shadow.camera.left = -20;
+    directionalLight.shadow.camera.right = 20;
+    directionalLight.shadow.camera.top = 20;
+    directionalLight.shadow.camera.bottom = -20;
+    scene.add(directionalLight);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(ambientLight);
+
+    const groundGeo = new THREE.PlaneGeometry(40, 40);
+    const groundMat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 10 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+    const groundEdges = new THREE.EdgesGeometry(groundGeo);
+    const lineMat = new THREE.LineBasicMaterial({ color: 0x000000 });
+    const groundLines = new THREE.LineSegments(groundEdges, lineMat);
+    groundLines.rotation.x = -Math.PI / 2;
+    scene.add(groundLines);
+
+    const wallMat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 10 });
+    const wallGeo = new THREE.BoxGeometry(40, 3, 1);
+    const northWall = new THREE.Mesh(wallGeo, wallMat);
+    northWall.position.set(0, 1.5, -19.5);
+    northWall.castShadow = true;
+    northWall.receiveShadow = true;
+    scene.add(northWall);
+    const northWallEdges = new THREE.EdgesGeometry(wallGeo);
+    const northWallLines = new THREE.LineSegments(northWallEdges, lineMat);
+    northWallLines.position.set(0, 1.5, -19.5);
+    scene.add(northWallLines);
+
+    const southWall = new THREE.Mesh(wallGeo, wallMat);
+    southWall.position.set(0, 1.5, 19.5);
+    southWall.castShadow = true;
+    southWall.receiveShadow = true;
+    scene.add(southWall);
+    const southWallEdges = new THREE.EdgesGeometry(wallGeo);
+    const southWallLines = new THREE.LineSegments(southWallEdges, lineMat);
+    southWallLines.position.set(0, 1.5, 19.5);
+    scene.add(southWallLines);
+
+    const westWall = new THREE.Mesh(wallGeo, wallMat);
+    westWall.position.set(-19.5, 1.5, 0);
+    westWall.rotation.y = Math.PI / 2;
+    westWall.castShadow = true;
+    westWall.receiveShadow = true;
+    scene.add(westWall);
+    const westWallEdges = new THREE.EdgesGeometry(wallGeo);
+    const westWallLines = new THREE.LineSegments(westWallEdges, lineMat);
+    westWallLines.position.set(-19.5, 1.5, 0);
+    westWallLines.rotation.y = Math.PI / 2;
+    scene.add(westWallLines);
+
+    const eastWall = new THREE.Mesh(wallGeo, wallMat);
+    eastWall.position.set(19.5, 1.5, 0);
+    eastWall.rotation.y = Math.PI / 2;
+    eastWall.castShadow = true;
+    eastWall.receiveShadow = true;
+    scene.add(eastWall);
+    const eastWallEdges = new THREE.EdgesGeometry(wallGeo);
+    const eastWallLines = new THREE.LineSegments(eastWallEdges, lineMat);
+    eastWallLines.position.set(19.5, 1.5, 0);
+    eastWallLines.rotation.y = Math.PI / 2;
+    scene.add(eastWallLines);
+
+    const midWallGeo = new THREE.BoxGeometry(10, 3, 1);
+    const midWallLeft = new THREE.Mesh(midWallGeo, wallMat);
+    midWallLeft.position.set(-7, 1.5, 0);
+    midWallLeft.castShadow = true;
+    midWallLeft.receiveShadow = true;
+    scene.add(midWallLeft);
+    const midWallLeftEdges = new THREE.EdgesGeometry(midWallGeo);
+    const midWallLeftLines = new THREE.LineSegments(midWallLeftEdges, lineMat);
+    midWallLeftLines.position.set(-7, 1.5, 0);
+    scene.add(midWallLeftLines);
+
+    const midWallRight = new THREE.Mesh(midWallGeo, wallMat);
+    midWallRight.position.set(7, 1.5, 0);
+    midWallRight.castShadow = true;
+    midWallRight.receiveShadow = true;
+    scene.add(midWallRight);
+    const midWallRightEdges = new THREE.EdgesGeometry(midWallGeo);
+    const midWallRightLines = new THREE.LineSegments(midWallRightEdges, lineMat);
+    midWallRightLines.position.set(7, 1.5, 0);
+    scene.add(midWallRightLines);
+
+    const longAWallGeo = new THREE.BoxGeometry(1, 3, 18);
+    const longAWall = new THREE.Mesh(longAWallGeo, wallMat);
+    longAWall.position.set(-16, 1.5, -8);
+    longAWall.castShadow = true;
+    longAWall.receiveShadow = true;
+    scene.add(longAWall);
+    const longAWallEdges = new THREE.EdgesGeometry(longAWallGeo);
+    const longAWallLines = new THREE.LineSegments(longAWallEdges, lineMat);
+    longAWallLines.position.set(-16, 1.5, -8);
+    scene.add(longAWallLines);
+
+    const bTunnelWall = new THREE.Mesh(longAWallGeo, wallMat);
+    bTunnelWall.position.set(16, 1.5, 8);
+    bTunnelWall.castShadow = true;
+    bTunnelWall.receiveShadow = true;
+    scene.add(bTunnelWall);
+    const bTunnelWallEdges = new THREE.EdgesGeometry(longAWallGeo);
+    const bTunnelWallLines = new THREE.LineSegments(bTunnelWallEdges, lineMat);
+    bTunnelWallLines.position.set(16, 1.5, 8);
+    scene.add(bTunnelWallLines);
+
+    const crateGeo = new THREE.BoxGeometry(3, 1, 3);
+    const crate1 = new THREE.Mesh(crateGeo, wallMat);
+    crate1.position.set(-10, 0.5, -14);
+    crate1.castShadow = true;
+    crate1.receiveShadow = true;
+    scene.add(crate1);
+    const crate1Edges = new THREE.EdgesGeometry(crateGeo);
+    const crate1Lines = new THREE.LineSegments(crate1Edges, lineMat);
+    crate1Lines.position.set(-10, 0.5, -14);
+    scene.add(crate1Lines);
+
+    const crate2 = new THREE.Mesh(crateGeo, wallMat);
+    crate2.position.set(10, 0.5, 14);
+    crate2.castShadow = true;
+    crate2.receiveShadow = true;
+    scene.add(crate2);
+    const crate2Edges = new THREE.EdgesGeometry(crateGeo);
+    const crate2Lines = new THREE.LineSegments(crate2Edges, lineMat);
+    crate2Lines.position.set(10, 0.5, 14);
+    scene.add(crate2Lines);
+
+    const crate3 = new THREE.Mesh(crateGeo, wallMat);
+    crate3.position.set(0, 0.5, 6);
+    crate3.castShadow = true;
+    crate3.receiveShadow = true;
+    scene.add(crate3);
+    const crate3Edges = new THREE.EdgesGeometry(crateGeo);
+    const crate3Lines = new THREE.LineSegments(crate3Edges, lineMat);
+    crate3Lines.position.set(0, 0.5, 6);
+    scene.add(crate3Lines);
+
+    const bombsiteGeo = new THREE.PlaneGeometry(10, 10);
+    const bombsite = new THREE.Mesh(bombsiteGeo, wallMat);
+    bombsite.rotation.x = -Math.PI / 2;
+    bombsite.position.set(12, 0.01, 12);
+    bombsite.receiveShadow = true;
+    scene.add(bombsite);
+    const bombsiteEdges = new THREE.EdgesGeometry(bombsiteGeo);
+    const bombsiteLines = new THREE.LineSegments(bombsiteEdges, lineMat);
+    bombsiteLines.rotation.x = -Math.PI / 2;
+    bombsiteLines.position.set(12, 0.01, 12);
+    scene.add(bombsiteLines);
+
+    let playerTeam = null;
+    let matchId = null;
+    let gameState = 'waiting';
+    const playerGeo = new THREE.BoxGeometry(0.5, 1.5, 0.5);
+    const playerMat = new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 10 });
+    const player = new THREE.Mesh(playerGeo, playerMat);
+    player.health = 100;
+    player.castShadow = true;
+    player.receiveShadow = true;
+    scene.add(player);
+
+    let playerLines;
+    let csmApiKey = localStorage.getItem('csmApiKey') || null;
+
+    function setPlayerTeam(team) {
+      playerTeam = team;
+      const lineColor = team === 'green' ? 0x00ff00 : 0xff0000;
+      if (playerLines) player.remove(playerLines);
+      const playerEdges = new THREE.EdgesGeometry(playerGeo);
+      playerLines = new THREE.LineSegments(playerEdges, new THREE.LineBasicMaterial({ color: lineColor }));
+      player.add(playerLines);
+      player.position.set(team === 'green' ? -14 : 14, 0.75, team === 'green' ? -14 : 14);
+      updatePlayerInfo();
+    }
+
+    camera.position.set(0, 1.2, 0);
+    player.add(camera);
+
+    const gunshotSound = new Audio('/sniper.mp3');
+    gunshotSound.volume = 0.5;
+
+    // Update the player info function to ensure health is displayed correctly
+    function updatePlayerInfo() {
+      const healthValue = player.health || 100; // Default to 100 if undefined
+      document.getElementById('playerInfo').innerText = `Team: ${playerTeam || 'Unknown'} | Health: ${healthValue}`;
+      
+      // Update profile stats if available
+      const profileStats = document.getElementById('profileStats');
+      if (profileStats) {
+        profileStats.innerHTML = `Health: ${healthValue}`;
+        
+        // Add avatar rebirth and wins stats
+        const avatarStats = document.createElement('div');
+        avatarStats.className = 'avatar-stats';
+        
+        const rebirthCounter = document.createElement('div');
+        rebirthCounter.className = 'rebirth-counter';
+        rebirthCounter.innerHTML = `<span class="stat-icon">🔄</span><span class="stat-value">${avatarRebirths || 0}</span><span class="stat-label">AI Avatar Rebirths</span>`;
+        
+        const winsCounter = document.createElement('div');
+        winsCounter.className = 'wins-counter';
+        winsCounter.innerHTML = `<span class="stat-icon">🏆</span><span class="stat-value">${totalWins || 0}</span><span class="stat-label">Total Wins</span>`;
+        
+        avatarStats.appendChild(rebirthCounter);
+        avatarStats.appendChild(winsCounter);
+        
+        profileStats.appendChild(avatarStats);
+      }
+      
+      // Update health bar if it exists
+      const healthBar = document.getElementById('healthBar');
+      if (healthBar) {
+        const healthPercent = Math.max(0, Math.min(100, healthValue));
+        healthBar.style.width = `${healthPercent}%`;
+        
+        // Change color based on health level
+        if (healthPercent > 70) {
+          healthBar.style.backgroundColor = '#00ff00'; // Green
+        } else if (healthPercent > 30) {
+          healthBar.style.backgroundColor = '#ffff00'; // Yellow
+        } else {
+          healthBar.style.backgroundColor = '#ff0000'; // Red
+        }
+      }
+    }
+
+    function updateScoreboard(data) {
+      const scoreboard = document.getElementById('scoreboardContent');
+      let html = `Round: ${data.round}/5<br>Green (${data.greenScore}):<br>`;
+      
+      // Add null checks for greenTeam
+      if (data.greenTeam && Array.isArray(data.greenTeam)) {
+        data.greenTeam.forEach(id => {
+          const p = data.players[id] || {};
+          const kills = p.kills || 0;
+          const deaths = p.deaths || 0;
+          const rebirths = p.avatarRebirths || 0;
+          const wins = p.totalWins || 0;
+          html += `${id.slice(0, 5)}: ${kills}/${deaths} 🔄${rebirths} 🏆${wins}<br>`;
+        });
+      }
+      
+      html += `Red (${data.redScore}):<br>`;
+      
+      // Add null checks for redTeam
+      if (data.redTeam && Array.isArray(data.redTeam)) {
+        data.redTeam.forEach(id => {
+          const p = data.players[id] || {};
+          const kills = p.kills || 0;
+          const deaths = p.deaths || 0;
+          const rebirths = p.avatarRebirths || 0;
+          const wins = p.totalWins || 0;
+          html += `${id.slice(0, 5)}: ${kills}/${deaths} 🔄${rebirths} 🏆${wins}<br>`;
+        });
+      }
+      
+      scoreboard.innerHTML = html;
+
+      if (playerTeam) {
+        document.getElementById('profileName').innerHTML = 
+          `${socket.id.slice(0, 5)} (${playerTeam})`;
+        
+        const profileStats = document.getElementById('profileStats');
+        if (profileStats) {
+          const currentPlayer = data.players[socket.id] || {};
+          profileStats.innerHTML = 
+            `K/D: ${currentPlayer.kills || 0}/${currentPlayer.deaths || 0}`;
+          
+          // Add avatar stats to profile
+          const avatarStats = document.createElement('div');
+          avatarStats.className = 'avatar-stats';
+          
+          const rebirthCounter = document.createElement('div');
+          rebirthCounter.className = 'rebirth-counter';
+          rebirthCounter.innerHTML = `<span class="stat-icon">🔄</span><span class="stat-value">${avatarRebirths}</span><span class="stat-label">AI Avatar Rebirths</span>`;
+          
+          const winsCounter = document.createElement('div');
+          winsCounter.className = 'wins-counter';
+          winsCounter.innerHTML = `<span class="stat-icon">🏆</span><span class="stat-value">${totalWins}</span><span class="stat-label">Total Wins</span>`;
+          
+          avatarStats.appendChild(rebirthCounter);
+          avatarStats.appendChild(winsCounter);
+          
+          profileStats.appendChild(avatarStats);
+        }
+        
+        const profileImage = document.getElementById('profileImage');
+        if (profileImage) {
+          const borderColor = playerTeam === 'green' ? '#00ff00' : '#ff0000';
+          profileImage.style.borderColor = borderColor;
+          profileImage.style.boxShadow = `0 0 10px ${borderColor}`;
+        }
+        
+        const profileName = document.getElementById('profileName');
+        if (profileName) {
+          profileName.style.color = playerTeam === 'green' ? '#00ff00' : '#ff0000';
+        }
+      }
+    }
+
+    function resetGame() {
+      // Clear any active countdown
+      if (window.countdownInterval) {
+        clearInterval(window.countdownInterval);
+        window.countdownInterval = null;
+        
+        // Remove countdown overlay if it exists
+        const countdownOverlay = document.getElementById('countdownOverlay');
+        if (countdownOverlay && countdownOverlay.parentNode) {
+          countdownOverlay.parentNode.removeChild(countdownOverlay);
+        }
+      }
+      
+      // Reset game state
+      gameState = 'waiting';
+      playerTeam = null;
+      matchId = null;
+      player.health = 100;
+      player.position.set(0, 0.75, 0);
+      
+      // Properly clean up other players
+      for (let id in otherPlayers) {
+        console.log(`Removing player ${id} during reset`);
+        
+        // Make sure to remove all child objects
+        if (otherPlayers[id].headMesh) {
+          otherPlayers[id].remove(otherPlayers[id].headMesh);
+          otherPlayers[id].headMesh = null;
+        }
+        
+        // Remove from scene
+        scene.remove(otherPlayers[id]);
+      }
+      
+      // Clear the otherPlayers object
+      otherPlayers = {};
+      
+      // Reset UI elements
+      document.getElementById('matchEndScreen').style.display = 'none';
+      document.getElementById('opponentLeftScreen').style.display = 'none';
+      document.getElementById('waitingScreen').style.display = 'block';
+      document.getElementById('scoreboardContent').innerHTML = 'Waiting for opponent...';
+      document.getElementById('waitTimer').innerText = '30';
+      document.getElementById('roomCount').innerText = '0';
+      document.getElementById('waitingCount').innerText = '0/2';
+      
+      // Update player info
+      updatePlayerInfo();
+      
+      console.log('Game reset complete');
+    }
+
+    const keys = {};
+    document.addEventListener('keydown', (e) => keys[e.key] = true);
+    document.addEventListener('keyup', (e) => keys[e.key] = false);
+
+    let mouseX = 0, mouseY = 0;
+    let isLocked = false;
+    document.addEventListener('click', () => document.body.requestPointerLock());
+    document.addEventListener('pointerlockchange', () => isLocked = document.pointerLockElement === document.body);
+    document.addEventListener('mousemove', (e) => {
+      if (isLocked) {
+        mouseX += e.movementX * 0.002;
+        mouseY += e.movementY * 0.002;
+        mouseY = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, mouseY));
+      }
+    });
+
+    let velocityY = 0;
+    const gravity = -0.02;
+    const jumpForce = 0.3;
+    let isCrouching = false;
+    const normalHeight = 1.5;
+    const crouchHeight = 0.8;
+    let bobTime = 0;
+    const bobAmplitude = 0.05;
+    const bobFrequency = 3;
+    let recoilActive = false;
+
+    const socket = io('https://localhost:9001');
+    let otherPlayers = {};
+
+    socket.on('connect', () => {
+      console.log('Connected with ID:', socket.id);
+      // Don't automatically join - wait for button click
+      document.getElementById('connectionOverlay').style.display = 'flex';
+    });
+
+    socket.on('waiting', (data) => {
+      if (gameState === 'waiting') {
+        document.getElementById('waitingScreen').style.display = 'block';
+        document.getElementById('waitingCount').innerText = `${data.players}/2`;
+        document.getElementById('roomCount').innerText = data.rooms;
+      }
+    });
+
+    socket.on('waitingTimer', (data) => {
+      if (gameState === 'waiting') {
+        document.getElementById('waitTimer').innerText = data.timeLeft > 0 ? data.timeLeft : '0';
+        document.getElementById('waitingCount').innerText = `${data.players}/2`;
+        document.getElementById('roomCount').innerText = data.rooms;
+      }
+    });
+
+    socket.on('exploreMode', (data) => {
+      gameState = 'explore';
+      document.getElementById('waitingScreen').style.display = 'none';
+      document.getElementById('opponentLeftScreen').style.display = 'none';
+      updatePlayerInfo();
+    });
+
+    socket.on('team', (team) => {
+      console.log(`Assigned to team: ${team}`);
+      setPlayerTeam(team);
+      
+      // Update player's userData to include team information
+      player.userData = player.userData || {};
+      player.userData.id = socket.id;
+      player.team = team;
+      
+      // Update UI with team information
+      updatePlayerInfo();
+    });
+
+    socket.on('init', (allPlayers) => {
+      console.log('Received init event with players:', allPlayers);
+      
+      // Request team sync to ensure we have the correct team
+      socket.emit('requestTeamSync');
+      
+      // Clear existing players first to avoid duplicates
+      for (let id in otherPlayers) {
+        console.log(`Removing existing player ${id} during init`);
+        scene.remove(otherPlayers[id]);
+        delete otherPlayers[id];
+      }
+      
+      // Add all players except ourselves
+      for (let id in allPlayers) {
+        if (id !== socket.id) {
+          console.log(`Initializing player ${id} from init event with team ${allPlayers[id].team}`);
+          addOtherPlayer(id, allPlayers[id]);
+        } else {
+          // Use server's team information for our player if available
+          if (allPlayers[id].team && allPlayers[id].team !== playerTeam) {
+            console.log(`Correcting my team from ${playerTeam} to ${allPlayers[id].team}`);
+            setPlayerTeam(allPlayers[id].team);
+            player.team = allPlayers[id].team;
+            updatePlayerInfo();
+          }
+        }
+      }
+      
+      // Log all players for debugging
+      console.log("Player state after init:", {
+        myTeam: playerTeam,
+        myId: socket.id,
+        otherPlayersCount: Object.keys(otherPlayers).length,
+        otherPlayerIDs: Object.keys(otherPlayers)
+      });
+    });
+
+    socket.on('matchStart', (data) => {
+      gameState = 'active';
+      matchId = data.matchId;
+      document.getElementById('waitingScreen').style.display = 'none';
+      document.getElementById('opponentLeftScreen').style.display = 'none';
+      player.position.set(playerTeam === 'green' ? -14 : 14, 0.75, playerTeam === 'green' ? -14 : 14);
+      player.health = 100;
+      updatePlayerInfo();
+      
+      // Close all panels when match starts
+      closeAllPanels();
+      toggleControlsBtn.style.display = 'block';
+      
+      // Lock pointer for gameplay
+      lockPointer();
+    });
+
+    socket.on('roundStart', (data) => {
+      player.health = 100;
+      player.position.set(playerTeam === 'green' ? -14 : 14, 0.75, playerTeam === 'green' ? -14 : 14);
+      updatePlayerInfo();
+    });
+
+    socket.on('playersUpdate', (data) => {
+      updateScoreboard(data);
+      
+      // Check for players that should be added or updated
+      for (let id in data.players) {
+        if (id !== socket.id) {
+          if (otherPlayers[id]) {
+            // Update existing player
+            updateOtherPlayer(id, data.players[id]);
+          } else {
+            // Add new player
+            console.log(`Adding missing player ${id} from playersUpdate`);
+            addOtherPlayer(id, data.players[id]);
+          }
+        }
+      }
+      
+      // Check for players that should be removed
+      for (let id in otherPlayers) {
+        if (!data.players[id]) {
+          console.log(`Removing player ${id} that's no longer in the game`);
+          scene.remove(otherPlayers[id]);
+          delete otherPlayers[id];
+        }
+      }
+    });
+
+    socket.on('update', (data) => {
+      if (data.id !== socket.id) {
+        // Update other player
+        updateOtherPlayer(data.id, data);
+      } else if (data.health !== undefined) {
+        // Update our own health if it's included in the update
+        player.health = data.health;
+        updatePlayerInfo();
+      }
+    });
+
+    // Update the takeDamage function to ensure health is properly updated
+    function takeDamage(amount, hitPosition) {
+      player.health = Math.max(0, Math.min(100, (player.health || 100) - amount));
+      updatePlayerInfo();
+      
+      // Show blood effect
+      createBloodEffect(hitPosition || player.position);
+      
+      // Damage overlay
+      const damageOverlay = document.getElementById('damageOverlay');
+      damageOverlay.style.animation = 'none';
+      damageOverlay.offsetHeight;
+      damageOverlay.style.display = 'block';
+      damageOverlay.style.animation = 'fadeRedOverlay 0.5s forwards';
+      
+      // Play hit sound if available
+      if (window.hitSound) {
+        window.hitSound.currentTime = 0;
+        window.hitSound.play().catch(e => console.log('Error playing hit sound:', e));
+      }
+      
+      setTimeout(() => damageOverlay.style.display = 'none', 500);
+
+      if (player.health <= 0) {
+        player.health = 100;
+        player.position.set(playerTeam === 'green' ? -14 : 14, 0.75, playerTeam === 'green' ? -14 : 14);
+        socket.emit('update', { 
+          x: player.position.x, 
+          z: player.position.z, 
+          rotY: 0, 
+          team: playerTeam,
+          health: player.health
+        });
+      }
+    }
+
+    // Add animation end listener to ensure overlay is hidden
+    document.addEventListener('DOMContentLoaded', () => {
+      const damageOverlay = document.getElementById('damageOverlay');
+      damageOverlay.addEventListener('animationend', () => {
+        damageOverlay.style.display = 'none';
+      });
+    });
+
+    // Update the socket event for damage
+    socket.on('damage', (data) => {
+      if (data.target === socket.id && gameState === 'active') {
+        takeDamage(data.amount, data.position);
+      }
+    });
+
+    socket.on('matchEnd', (data) => {
+      gameState = 'finished';
+      document.getElementById('matchEndScreen').style.display = 'block';
+      const finalScores = document.getElementById('finalScores');
+      
+      // Determine if player won
+      const playerWon = (playerTeam === 'green' && data.greenScore > data.redScore) || 
+                        (playerTeam === 'red' && data.redScore > data.greenScore);
+      
+      // Create celebration message if player won
+      let html = '';
+      if (playerWon) {
+        html += `<div class="celebration-text">🎉 CONGRATULATIONS! YOU WON! 🏆</div>`;
+        html += `<div class="celebration-text">🎮 VICTORY ROYALE 🌟</div>`;
+        
+        // Create fireworks effect
+        createFireworks();
+        
+        // Play victory sound
+        const victorySound = new Audio('/victory.mp3');
+        victorySound.volume = 0.5;
+        victorySound.play().catch(e => console.log('Error playing victory sound:', e));
+      } else if (data.greenScore === data.redScore) {
+        html += `<div class="celebration-text">🤝 IT'S A DRAW! 🤝</div>`;
+      } else {
+        html += `<div style="font-size: 24px; margin-bottom: 15px;">Better luck next time! 😊</div>`;
+      }
+      
+      html += `Green: ${data.greenScore} - Red: ${data.redScore}<br><br>`;
+      html += 'Green Team:<br>';
+      Object.keys(data.players).forEach(id => {
+        if (data.players[id].team === 'green') {
+          const isCurrentPlayer = id === socket.id;
+          const playerName = id.slice(0, 5) + (isCurrentPlayer ? ' (You)' : '');
+          html += `${playerName}: ${data.players[id].kills}/${data.players[id].deaths}<br>`;
+        }
+      });
+      html += '<br>Red Team:<br>';
+      Object.keys(data.players).forEach(id => {
+        if (data.players[id].team === 'red') {
+          const isCurrentPlayer = id === socket.id;
+          const playerName = id.slice(0, 5) + (isCurrentPlayer ? ' (You)' : '');
+          html += `${playerName}: ${data.players[id].kills}/${data.players[id].deaths}<br>`;
+        }
+      });
+      finalScores.innerHTML = html;
+      
+      // Check if we won and update win counter
+      if (data.winnerIds && data.winnerIds.includes(socket.id)) {
+        totalWins++;
+        localStorage.setItem('totalWins', totalWins.toString());
+        
+        // Add winner celebration
+        const matchEndScreen = document.getElementById('matchEndScreen');
+        const celebrationText = document.createElement('div');
+        celebrationText.className = 'celebration-text';
+        celebrationText.innerText = 'YOU WON! 🏆';
+        matchEndScreen.prepend(celebrationText);
+      }
+    });
+
+    // Function to create fireworks effect
+    function createFireworks() {
+      const fireworks = document.createElement('div');
+      fireworks.className = 'fireworks';
+      document.body.appendChild(fireworks);
+      
+      // Create 20 firework particles
+      for (let i = 0; i < 20; i++) {
+        setTimeout(() => {
+          const particle = document.createElement('div');
+          particle.style.position = 'absolute';
+          particle.style.width = '5px';
+          particle.style.height = '5px';
+          particle.style.borderRadius = '50%';
+          
+          // Random position
+          const x = Math.random() * 100;
+          const y = Math.random() * 100;
+          particle.style.left = `${x}%`;
+          particle.style.top = `${y}%`;
+          
+          // Random color
+          const hue = Math.floor(Math.random() * 360);
+          particle.style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
+          particle.style.boxShadow = `0 0 10px 2px hsl(${hue}, 100%, 50%)`;
+          
+          // Animation
+          particle.style.animation = `firework ${Math.random() * 1 + 1}s forwards`;
+          particle.style.opacity = '0';
+          particle.style.transform = 'scale(0)';
+          
+          // Add keyframe animation dynamically
+          const style = document.createElement('style');
+          style.innerHTML = `
+            @keyframes firework {
+              0% { opacity: 0; transform: scale(0); }
+              50% { opacity: 1; transform: scale(${Math.random() * 3 + 2}); }
+              100% { opacity: 0; transform: scale(0); }
+            }
+          `;
+          document.head.appendChild(style);
+          
+          fireworks.appendChild(particle);
+          
+          // Remove particle after animation
+          setTimeout(() => {
+            if (particle.parentNode) {
+              particle.parentNode.removeChild(particle);
+            }
+            if (style.parentNode) {
+              style.parentNode.removeChild(style);
+            }
+          }, 2000);
+        }, i * 200); // Stagger fireworks
+      }
+      
+      // Remove fireworks container after all animations
+      setTimeout(() => {
+        if (fireworks.parentNode) {
+          fireworks.parentNode.removeChild(fireworks);
+        }
+      }, 5000);
+    }
+
+    socket.on('opponentLeft', (data) => {
+      gameState = 'opponentLeft';
+      
+      // Create countdown overlay
+      const countdownOverlay = document.createElement('div');
+      countdownOverlay.id = 'countdownOverlay';
+      countdownOverlay.style.position = 'absolute';
+      countdownOverlay.style.top = '50%';
+      countdownOverlay.style.left = '50%';
+      countdownOverlay.style.transform = 'translate(-50%, -50%)';
+      countdownOverlay.style.background = 'rgba(0, 0, 0, 0.8)';
+      countdownOverlay.style.color = '#fff';
+      countdownOverlay.style.padding = '20px 30px';
+      countdownOverlay.style.borderRadius = '10px';
+      countdownOverlay.style.textAlign = 'center';
+      countdownOverlay.style.zIndex = '1000';
+      countdownOverlay.style.fontFamily = "'Orbitron', sans-serif";
+      countdownOverlay.style.border = '2px solid #00ff00';
+      countdownOverlay.style.boxShadow = '0 0 15px rgba(0, 255, 0, 0.3)';
+      
+      // Set initial content
+      countdownOverlay.innerHTML = `
+        <h2 style="color: #00ff00; margin-top: 0;">Opponent Left!</h2>
+        <p>${data.message}</p>
+        <p>Returning to waiting room in <span id="countdown">5</span> seconds...</p>
+      `;
+      
+      document.body.appendChild(countdownOverlay);
+      
+      // Start countdown
+      let secondsLeft = 5;
+      const countdownInterval = setInterval(() => {
+        secondsLeft--;
+        const countdownElement = document.getElementById('countdown');
+        if (countdownElement) {
+          countdownElement.textContent = secondsLeft;
+        }
+        
+        if (secondsLeft <= 0) {
+          clearInterval(countdownInterval);
+          
+          // Remove countdown overlay
+          if (countdownOverlay.parentNode) {
+            countdownOverlay.parentNode.removeChild(countdownOverlay);
+          }
+          
+          // Reset game and join waiting room
+          resetGame();
+          socket.emit('join');
+        }
+      }, 1000);
+      
+      // Store the interval ID to clear it if needed
+      window.countdownInterval = countdownInterval;
+      
+      // Clean up existing UI
+      matchId = null;
+      player.health = 100;
+      player.position.set(0, 0.75, 0);
+      for (let id in otherPlayers) scene.remove(otherPlayers[id]);
+      otherPlayers = {};
+      
+      // Hide other screens that might be visible
+      document.getElementById('matchEndScreen').style.display = 'none';
+      document.getElementById('opponentLeftScreen').style.display = 'none';
+      document.getElementById('waitingScreen').style.display = 'none';
+      
+      updatePlayerInfo();
+    });
+
+    document.getElementById('playAgain').addEventListener('click', () => {
+      resetGame();
+      socket.emit('join');
+    });
+
+    // Update the function that handles other players
+    function addOtherPlayer(id, data) {
+      // Validate input data
+      if (!id || !data) {
+        console.error("Invalid data provided to addOtherPlayer", id, data);
+        return;
+      }
+      
+      // Check if player already exists - if so, just update it
+      if (otherPlayers[id]) {
+        console.log(`Player ${id} already exists, updating instead of adding`);
+        updateOtherPlayer(id, data);
+        return;
+      }
+      
+      console.log(`Adding player ${id} with data:`, data);
+      
+      // Create the base player geometry
+      const otherPlayerGeo = new THREE.BoxGeometry(0.5, 1.5, 0.5);
+      const otherPlayerMat = new THREE.MeshPhongMaterial({ 
+        color: data.team === 'green' ? 0x00ff00 : 0xff0000,
+        transparent: true,
+        // Only make it invisible if we know we'll load a mesh
+        opacity: data.meshUrl ? 0.0 : 0.7,  
+        visible: !data.meshUrl // Make box visible if no mesh URL
+      });
+      const otherPlayer = new THREE.Mesh(otherPlayerGeo, otherPlayerMat);
+      
+      // Set position and rotation with fallbacks
+      otherPlayer.position.set(
+        data.x !== undefined ? data.x : 0, 
+        0.75, 
+        data.z !== undefined ? data.z : 0
+      );
+      otherPlayer.rotation.y = data.rotY !== undefined ? data.rotY : 0;
+      
+      otherPlayer.castShadow = true;
+      otherPlayer.receiveShadow = true;
+      
+      // Store the player's team for hit detection
+      otherPlayer.team = data.team || (Math.random() < 0.5 ? 'green' : 'red');
+      
+      // Store the player's ID for hit detection
+      otherPlayer.userData = otherPlayer.userData || {};
+      otherPlayer.userData.id = id;
+      otherPlayer.userData.playerId = id; // Add this for consistency with child meshes
+      
+      // Add player to scene and registry
+      scene.add(otherPlayer);
+      otherPlayers[id] = otherPlayer;
+      
+      // If the player has a mesh URL, load it
+      if (data.meshUrl) {
+        loadHeadForOtherPlayer(otherPlayer, data.meshUrl, id, data);
+        otherPlayer.lastMeshUrl = data.meshUrl;
+      } else {
+        console.log(`Player ${id} has no mesh URL, showing box representation`);
+        
+        // Add a wireframe outline to make the box more visible
+        const wireframe = new THREE.LineSegments(
+          new THREE.EdgesGeometry(otherPlayerGeo),
+          new THREE.LineBasicMaterial({ color: data.team === 'green' ? 0x00ff00 : 0xff0000 })
+        );
+        otherPlayer.add(wireframe);
+      }
+      
+      console.log(`Added other player ${id} at position (${otherPlayer.position.x}, 0.75, ${otherPlayer.position.z}) with team ${otherPlayer.team}`);
+      
+      return otherPlayer;
+    }
+
+    // Create a separate function for loading other players' heads
+    function loadHeadForOtherPlayer(player, meshUrl, playerId, playerData) {
+      // Safety check in case the player object is no longer valid or was removed
+      if (!player || !otherPlayers[playerId]) {
+        console.warn(`Tried to load head for player ${playerId} but player no longer exists`);
+        return;
+      }
+      
+      // If URL is invalid or empty, don't try to load
+      if (!meshUrl || typeof meshUrl !== 'string' || meshUrl.trim() === '') {
+        console.warn(`Invalid mesh URL for player ${playerId}`);
+        
+        // Make the box visible since we won't have a mesh
+        player.material.opacity = 0.7;
+        player.material.visible = true;
+        return;
+      }
+      
+      console.log(`Loading head for player ${playerId} from URL: ${meshUrl}`);
+      
+      const loader = new THREE.GLTFLoader();
+      
+      // Add a timeout to handle cases where loading gets stuck
+      const loadTimeout = setTimeout(() => {
+        console.warn(`Head loading timed out for player ${playerId}`);
+        // Check if player still exists
+        if (otherPlayers[playerId]) {
+          // Mark as failed so we don't try again with the same URL
+          otherPlayers[playerId].lastMeshUrl = meshUrl;
+          // Make the box visible since mesh loading failed
+          otherPlayers[playerId].material.opacity = 0.7;
+          otherPlayers[playerId].material.visible = true;
+        }
+      }, 10000); // 10 second timeout
+      
+      loader.load(
+        meshUrl,
+        (gltf) => {
+          clearTimeout(loadTimeout);
+          
+          // Check if player still exists in the scene
+          if (!otherPlayers[playerId]) {
+            console.warn(`Player ${playerId} left during head loading, aborting`);
+            return;
+          }
+          
+          if (player.headMesh) player.remove(player.headMesh);
+          const model = gltf.scene;
+          model.visible = true;
+          
+          // Get the bounding box of the model
+          const box = new THREE.Box3().setFromObject(model);
+          const size = box.getSize(new THREE.Vector3());
+          const center = box.getCenter(new THREE.Vector3());
+          
+          // Calculate scale to make the model a reasonable size
+          const targetHeight = 0.6;
+          const scale = targetHeight / size.y;
+          const maxScale = 0.3;
+          const finalScale = Math.min(scale, maxScale);
+          
+          // Apply base scale
+          model.scale.set(finalScale, finalScale, finalScale);
+          
+          // Recalculate bounding box after scaling
+          box.setFromObject(model);
+          box.getCenter(center);
+          box.getSize(size);
+          
+          // Position the model so it sits on top of the player box
+          model.position.set(
+            -center.x * finalScale,
+            -box.min.y * finalScale + 0.75,
+            -center.z * finalScale
+          );
+          
+          // Apply base rotation
+          model.rotation.y = Math.PI;
+          
+          // Tag each mesh with player ID and team to improve hit detection
+          model.userData.playerId = playerId;
+          model.userData.team = player.team;
+          
+          model.traverse(child => { 
+            if (child.isMesh) {
+              child.material.needsUpdate = true;
+              child.castShadow = true;
+              child.receiveShadow = true;
+              // Tag each child mesh with player ID and team
+              child.userData.playerId = playerId;
+              child.userData.team = player.team;
+            }
+          });
+          
+          player.headMesh = model;
+          player.add(model);
+          player.lastMeshUrl = meshUrl;
+          
+          // Now that we have a mesh, hide the box
+          player.material.opacity = 0.0;
+          player.material.visible = false;
+          
+          console.log(`Successfully loaded head for player ${playerId}`);
+        },
+        (progress) => {
+          // Optional progress callback
+          if (progress.lengthComputable) {
+            const percentComplete = (progress.loaded / progress.total) * 100;
+            if (percentComplete % 25 === 0) { // Log at 0, 25, 50, 75, 100%
+              console.log(`Head loading progress for player ${playerId}: ${Math.round(percentComplete)}%`);
+            }
+          }
+        },
+        (error) => {
+          clearTimeout(loadTimeout);
+          console.error(`Error loading head for player ${playerId}:`, error);
+          
+          // Mark as failed so we don't try again with the same URL
+          if (otherPlayers[playerId]) {
+            otherPlayers[playerId].lastMeshUrl = meshUrl;
+            // Make the box visible since mesh loading failed
+            otherPlayers[playerId].material.opacity = 0.7;
+            otherPlayers[playerId].material.visible = true;
+          }
+        }
+      );
+    }
+
+    // Update the function that updates other players
+    function updateOtherPlayer(id, data) {
+      // Validate input
+      if (!id) {
+        console.error("Invalid player ID in updateOtherPlayer");
+        return;
+      }
+      
+      // If player doesn't exist, add them
+      if (!otherPlayers[id]) {
+        console.log(`Player ${id} doesn't exist, adding instead of updating`);
+        addOtherPlayer(id, data);
+        return;
+      }
+      
+      const player = otherPlayers[id];
+      
+      // Update position if provided
+      if (data.x !== undefined) {
+        player.position.x = data.x;
+      }
+      
+      if (data.z !== undefined) {
+        player.position.z = data.z;
+      }
+      
+      // Update rotation if provided
+      if (data.rotY !== undefined) {
+        player.rotation.y = data.rotY;
+      }
+      
+      // Update team information if provided
+      if (data.team) {
+        player.team = data.team;
+        
+        // Update team information on head mesh if it exists
+        if (player.headMesh) {
+          player.headMesh.userData.team = data.team;
+          player.headMesh.traverse(child => {
+            if (child.userData) {
+              child.userData.team = data.team;
+            }
+          });
+        }
+      }
+      
+      // Update health if provided and update health bar
+      if (data.health !== undefined) {
+        // Store the previous health to detect hits
+        const oldHealth = player.health;
+        player.health = data.health;
+        
+        // If health decreased, show hit effect
+        if (oldHealth !== undefined && data.health < oldHealth) {
+          console.log(`Player ${id} took damage! Health: ${oldHealth} -> ${data.health}`);
+          
+          // Flash the player red
+          if (player.hitFlash) {
+            clearTimeout(player.hitFlash);
+          }
+          
+          // Create or update health bar
+          updatePlayerHealthBar(player, data.health);
+          
+          // Apply hit effect
+          const originalMaterial = player.material.clone();
+          player.material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+          player.hitFlash = setTimeout(() => {
+            player.material = originalMaterial;
+          }, 200);
+        } else if (data.health !== oldHealth) {
+          // Update health bar without flash effect
+          updatePlayerHealthBar(player, data.health);
+        }
+      }
+      
+      // Handle mesh URL changes
+      if (data.meshUrl !== undefined) {
+        // Case 1: Player had no mesh before, but now has one
+        if (!player.lastMeshUrl && data.meshUrl) {
+          console.log(`Player ${id} now has a mesh URL, loading it`);
+          loadHeadForOtherPlayer(player, data.meshUrl, id, data);
+        }
+        // Case 2: Player had a mesh before, but now doesn't
+        else if (player.lastMeshUrl && !data.meshUrl) {
+          console.log(`Player ${id} no longer has a mesh URL, showing box`);
+          
+          // Remove the head mesh if it exists
+          if (player.headMesh) {
+            player.remove(player.headMesh);
+            player.headMesh = null;
+          }
+          
+          // Make the box visible
+          player.material.opacity = 0.7;
+          player.material.visible = true;
+          
+          // Add a wireframe outline if it doesn't exist
+          if (!player.children.some(child => child instanceof THREE.LineSegments)) {
+            const wireframe = new THREE.LineSegments(
+              new THREE.EdgesGeometry(player.geometry),
+              new THREE.LineBasicMaterial({ color: player.team === 'green' ? 0x00ff00 : 0xff0000 })
+            );
+            player.add(wireframe);
+          }
+          
+          player.lastMeshUrl = null;
+        }
+        // Case 3: Player had a mesh before, and now has a different one
+        else if (player.lastMeshUrl && data.meshUrl && player.lastMeshUrl !== data.meshUrl) {
+          console.log(`Updating head for player ${id} with new URL`);
+          loadHeadForOtherPlayer(player, data.meshUrl, id, data);
+        }
+      }
+    }
+    
+    // Function to create or update a health bar above a player
+    function updatePlayerHealthBar(player, health) {
+      // Create health bar container if it doesn't exist
+      if (!player.healthBar) {
+        // Create a sprite to show health
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 16;
+        const ctx = canvas.getContext('2d');
+        
+        // Create a texture from the canvas
+        const texture = new THREE.CanvasTexture(canvas);
+        
+        // Create sprite material
+        const spriteMaterial = new THREE.SpriteMaterial({
+          map: texture,
+          transparent: true
+        });
+        
+        // Create sprite
+        const sprite = new THREE.Sprite(spriteMaterial);
+        sprite.scale.set(1, 0.25, 1);
+        sprite.position.set(0, 1.8, 0); // Position above player
+        
+        player.add(sprite);
+        player.healthBar = {
+          sprite: sprite,
+          canvas: canvas,
+          ctx: ctx,
+          texture: texture
+        };
+      }
+      
+      // Update health bar
+      const { ctx, texture } = player.healthBar;
+      const healthPercent = Math.max(0, Math.min(100, health)) / 100;
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, 64, 16);
+      
+      // Draw background
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillRect(0, 0, 64, 16);
+      
+      // Draw health bar
+      if (healthPercent > 0.7) {
+        ctx.fillStyle = 'green';
+      } else if (healthPercent > 0.3) {
+        ctx.fillStyle = 'yellow';
+      } else {
+        ctx.fillStyle = 'red';
+      }
+      
+      ctx.fillRect(2, 2, 60 * healthPercent, 12);
+      
+      // Update texture
+      texture.needsUpdate = true;
+      
+      // Make sure the health bar is visible
+      player.healthBar.sprite.visible = health < 100 && health > 0;
+    }
+
+    // Add a listener for head updates from other players
+    socket.on('updateHead', (data) => {
+      if (data.id !== socket.id) {
+        console.log(`Received head update for player ${data.id}`);
+        if (otherPlayers[data.id]) {
+          loadHeadForOtherPlayer(otherPlayers[data.id], data.meshUrl, data.id, data);
+          otherPlayers[data.id].lastMeshUrl = data.meshUrl;
+        } else {
+          console.log(`Player ${data.id} not found, will update when they appear`);
+        }
+      }
+    });
+
+    // Make sure to emit our position, rotation, AND mesh URL regularly
+    function emitPlayerUpdate() {
+      if (gameState === 'active' || gameState === 'explore') {
+        const update = {
+          x: player.position.x,
+          z: player.position.z,
+          rotY: player.rotation.y,
+          team: playerTeam,
+          health: player.health
+        };
+        
+        // Add mesh URL if we have one
+        const cachedMeshUrl = localStorage.getItem('generatedMeshUrl');
+        if (cachedMeshUrl) {
+          update.meshUrl = cachedMeshUrl;
+        }
+        
+        socket.emit('update', update);
+      }
+    }
+
+    // Call emitPlayerUpdate regularly
+    setInterval(emitPlayerUpdate, 50);
+
+    // Then make sure the DOMContentLoaded event doesn't try to redefine these variables
+    document.addEventListener('DOMContentLoaded', () => {
+      // Create health bar if it doesn't exist
+      if (!document.getElementById('healthBar')) {
+        const healthBarContainer = document.createElement('div');
+        healthBarContainer.id = 'healthBarContainer';
+        healthBarContainer.style.position = 'absolute';
+        healthBarContainer.style.bottom = '10px';
+        healthBarContainer.style.left = '50%';
+        healthBarContainer.style.transform = 'translateX(-50%)';
+        healthBarContainer.style.width = '200px';
+        healthBarContainer.style.height = '15px';
+        healthBarContainer.style.backgroundColor = '#333';
+        healthBarContainer.style.border = '2px solid #555';
+        healthBarContainer.style.borderRadius = '10px';
+        healthBarContainer.style.overflow = 'hidden';
+        healthBarContainer.style.zIndex = '100';
+        
+        const healthBar = document.createElement('div');
+        healthBar.id = 'healthBar';
+        healthBar.style.width = '100%';
+        healthBar.style.height = '100%';
+        healthBar.style.backgroundColor = '#00ff00';
+        healthBar.style.transition = 'width 0.3s ease, background-color 0.3s ease';
+        
+        healthBarContainer.appendChild(healthBar);
+        document.body.appendChild(healthBarContainer);
+      }
+      
+      // Initialize player info
+      updatePlayerInfo();
+      
+      // Create avatar controls
+      createAvatarControls();
+    });
+
+    // Update the window.addEventListener('load') function to just update values, not redefine
+    window.addEventListener('load', () => {
+      const cachedImageUrl = localStorage.getItem('generatedImageUrl');
+      const cachedMeshUrl = localStorage.getItem('generatedMeshUrl');
+      
+      // Update values from localStorage
+      avatarRebirths = parseInt(localStorage.getItem('avatarRebirths') || '0');
+      totalWins = parseInt(localStorage.getItem('totalWins') || '0');
+      avatarScale = parseFloat(localStorage.getItem('avatarScale') || '1.0');
+      avatarRotationY = parseFloat(localStorage.getItem('avatarRotationY') || '0');
+      avatarHeight = parseFloat(localStorage.getItem('avatarHeight') || '0');
+      
+      if (cachedImageUrl) document.getElementById('profileImage').src = cachedImageUrl;
+      if (cachedMeshUrl) {
+        loadHeadForPlayer(player, cachedMeshUrl, socket.id);
+        socket.emit('updateHead', { meshUrl: cachedMeshUrl });
+      }
+      
+      updatePlayerInfo();
+    });
+
+    // Make sure createAvatarControls is called at the right time
+    document.addEventListener('DOMContentLoaded', () => {
+      // Load values from localStorage
+      avatarRebirths = parseInt(localStorage.getItem('avatarRebirths') || '0');
+      totalWins = parseInt(localStorage.getItem('totalWins') || '0');
+      avatarScale = parseFloat(localStorage.getItem('avatarScale') || '1.0');
+      avatarRotationY = parseFloat(localStorage.getItem('avatarRotationY') || '0');
+      avatarHeight = parseFloat(localStorage.getItem('avatarHeight') || '0');
+      
+      console.log("Initialized variables:", { avatarRebirths, totalWins, avatarScale, avatarRotationY, avatarHeight });
+      
+      // Create avatar controls
+      createAvatarControls();
+    });
+
+    // Recreate the avatar controls function
+    function createAvatarControls() {
+      console.log("Creating avatar controls");
+      
+      // Remove existing controls if they exist
+      const existingControls = document.getElementById('avatarControlsContainer');
+      if (existingControls) {
+        existingControls.remove();
+      }
+      
+      // Create container for avatar controls
+      const avatarControlsContainer = document.createElement('div');
+      avatarControlsContainer.id = 'avatarControlsContainer';
+      avatarControlsContainer.style.position = 'absolute';
+      avatarControlsContainer.style.bottom = '30px';
+      avatarControlsContainer.style.right = '10px';
+      avatarControlsContainer.style.display = 'flex';
+      avatarControlsContainer.style.flexDirection = 'column';
+      avatarControlsContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+      avatarControlsContainer.style.padding = '10px';
+      avatarControlsContainer.style.borderRadius = '5px';
+      avatarControlsContainer.style.zIndex = '100';
+      avatarControlsContainer.style.color = '#fff';
+      avatarControlsContainer.style.fontFamily = "'Orbitron', sans-serif";
+      avatarControlsContainer.style.fontSize = '12px';
+      
+      // Add title
+      const title = document.createElement('div');
+      title.textContent = 'Avatar Controls';
+      title.style.textAlign = 'center';
+      title.style.marginBottom = '5px';
+      title.style.fontWeight = 'bold';
+      avatarControlsContainer.appendChild(title);
+      
+      // Create scale control
+      const scaleContainer = document.createElement('div');
+      scaleContainer.style.display = 'flex';
+      scaleContainer.style.alignItems = 'center';
+      scaleContainer.style.marginBottom = '5px';
+      
+      const scaleLabel = document.createElement('div');
+      scaleLabel.textContent = 'Scale:';
+      scaleLabel.style.width = '60px';
+      scaleContainer.appendChild(scaleLabel);
+      
+      const scaleDown = document.createElement('button');
+      scaleDown.textContent = '-';
+      scaleDown.style.width = '25px';
+      scaleDown.style.height = '25px';
+      scaleDown.style.marginRight = '5px';
+      scaleDown.style.backgroundColor = '#333';
+      scaleDown.style.color = '#fff';
+      scaleDown.style.border = '1px solid #555';
+      scaleDown.style.borderRadius = '3px';
+      scaleDown.style.cursor = 'pointer';
+      scaleContainer.appendChild(scaleDown);
+      
+      const scaleValue = document.createElement('span');
+      scaleValue.id = 'scaleValue';
+      scaleValue.textContent = avatarScale.toFixed(1);
+      scaleValue.style.width = '30px';
+      scaleValue.style.textAlign = 'center';
+      scaleContainer.appendChild(scaleValue);
+      
+      const scaleUp = document.createElement('button');
+      scaleUp.textContent = '+';
+      scaleUp.style.width = '25px';
+      scaleUp.style.height = '25px';
+      scaleUp.style.marginLeft = '5px';
+      scaleUp.style.backgroundColor = '#333';
+      scaleUp.style.color = '#fff';
+      scaleUp.style.border = '1px solid #555';
+      scaleUp.style.borderRadius = '3px';
+      scaleUp.style.cursor = 'pointer';
+      scaleContainer.appendChild(scaleUp);
+      
+      avatarControlsContainer.appendChild(scaleContainer);
+      
+      // Create rotation control
+      const rotationContainer = document.createElement('div');
+      rotationContainer.style.display = 'flex';
+      rotationContainer.style.alignItems = 'center';
+      rotationContainer.style.marginBottom = '5px';
+      
+      const rotationLabel = document.createElement('div');
+      rotationLabel.textContent = 'Rotate:';
+      rotationLabel.style.width = '60px';
+      rotationContainer.appendChild(rotationLabel);
+      
+      const rotateLeft = document.createElement('button');
+      rotateLeft.textContent = '←';
+      rotateLeft.style.width = '25px';
+      rotateLeft.style.height = '25px';
+      rotateLeft.style.marginRight = '5px';
+      rotateLeft.style.backgroundColor = '#333';
+      rotateLeft.style.color = '#fff';
+      rotateLeft.style.border = '1px solid #555';
+      rotateLeft.style.borderRadius = '3px';
+      rotateLeft.style.cursor = 'pointer';
+      rotationContainer.appendChild(rotateLeft);
+      
+      const rotationValue = document.createElement('span');
+      rotationValue.id = 'rotationValue';
+      rotationValue.textContent = (avatarRotationY * (180/Math.PI)).toFixed(0) + '°';
+      rotationValue.style.width = '30px';
+      rotationValue.style.textAlign = 'center';
+      rotationContainer.appendChild(rotationValue);
+      
+      const rotateRight = document.createElement('button');
+      rotateRight.textContent = '→';
+      rotateRight.style.width = '25px';
+      rotateRight.style.height = '25px';
+      rotateRight.style.marginLeft = '5px';
+      rotateRight.style.backgroundColor = '#333';
+      rotateRight.style.color = '#fff';
+      rotateRight.style.border = '1px solid #555';
+      rotateRight.style.borderRadius = '3px';
+      rotateRight.style.cursor = 'pointer';
+      rotationContainer.appendChild(rotateRight);
+      
+      avatarControlsContainer.appendChild(rotationContainer);
+      
+      // Create height control
+      const heightContainer = document.createElement('div');
+      heightContainer.style.display = 'flex';
+      heightContainer.style.alignItems = 'center';
+      
+      const heightLabel = document.createElement('div');
+      heightLabel.textContent = 'Height:';
+      heightLabel.style.width = '60px';
+      heightContainer.appendChild(heightLabel);
+      
+      const heightDown = document.createElement('button');
+      heightDown.textContent = '↓';
+      heightDown.style.width = '25px';
+      heightDown.style.height = '25px';
+      heightDown.style.marginRight = '5px';
+      heightDown.style.backgroundColor = '#333';
+      heightDown.style.color = '#fff';
+      heightDown.style.border = '1px solid #555';
+      heightDown.style.borderRadius = '3px';
+      heightDown.style.cursor = 'pointer';
+      heightContainer.appendChild(heightDown);
+      
+      const heightValue = document.createElement('span');
+      heightValue.id = 'heightValue';
+      heightValue.textContent = avatarHeight.toFixed(1);
+      heightValue.style.width = '30px';
+      heightValue.style.textAlign = 'center';
+      heightContainer.appendChild(heightValue);
+      
+      const heightUp = document.createElement('button');
+      heightUp.textContent = '↑';
+      heightUp.style.width = '25px';
+      heightUp.style.height = '25px';
+      heightUp.style.marginLeft = '5px';
+      heightUp.style.backgroundColor = '#333';
+      heightUp.style.color = '#fff';
+      heightUp.style.border = '1px solid #555';
+      heightUp.style.borderRadius = '3px';
+      heightUp.style.cursor = 'pointer';
+      heightContainer.appendChild(heightUp);
+      
+      avatarControlsContainer.appendChild(heightContainer);
+      
+      // Add event listeners
+      scaleDown.addEventListener('click', () => {
+        avatarScale = Math.max(0.1, avatarScale - 0.1);
+        scaleValue.textContent = avatarScale.toFixed(1);
+        localStorage.setItem('avatarScale', avatarScale.toString());
+        updateAvatarTransform();
+      });
+      
+      scaleUp.addEventListener('click', () => {
+        avatarScale = Math.min(3.0, avatarScale + 0.1);
+        scaleValue.textContent = avatarScale.toFixed(1);
+        localStorage.setItem('avatarScale', avatarScale.toString());
+        updateAvatarTransform();
+      });
+      
+      rotateLeft.addEventListener('click', () => {
+        avatarRotationY -= Math.PI / 12; // 15 degrees
+        rotationValue.textContent = (avatarRotationY * (180/Math.PI)).toFixed(0) + '°';
+        localStorage.setItem('avatarRotationY', avatarRotationY.toString());
+        updateAvatarTransform();
+      });
+      
+      rotateRight.addEventListener('click', () => {
+        avatarRotationY += Math.PI / 12; // 15 degrees
+        rotationValue.textContent = (avatarRotationY * (180/Math.PI)).toFixed(0) + '°';
+        localStorage.setItem('avatarRotationY', avatarRotationY.toString());
+        updateAvatarTransform();
+      });
+      
+      heightDown.addEventListener('click', () => {
+        avatarHeight = Math.max(-1.0, avatarHeight - 0.1);
+        heightValue.textContent = avatarHeight.toFixed(1);
+        localStorage.setItem('avatarHeight', avatarHeight.toString());
+        updateAvatarTransform();
+      });
+      
+      heightUp.addEventListener('click', () => {
+        avatarHeight = Math.min(1.0, avatarHeight + 0.1);
+        heightValue.textContent = avatarHeight.toFixed(1);
+        localStorage.setItem('avatarHeight', avatarHeight.toString());
+        updateAvatarTransform();
+      });
+      
+      // Add to document
+      document.body.appendChild(avatarControlsContainer);
+      console.log("Avatar controls created and added to document");
+    }
+
+    // Fix the loadHeadForPlayer function to properly apply saved transforms
+    function loadHeadForPlayer(player, meshUrl, playerId) {
+      // Add a check for undefined playerId
+      if (!playerId) {
+        console.warn('Warning: loadHeadForPlayer called with undefined playerId');
+        playerId = 'unknown';
+      }
+      
+      const loader = new THREE.GLTFLoader();
+      loader.load(
+        meshUrl,
+        (gltf) => {
+          if (player.headMesh) player.remove(player.headMesh);
+          const model = gltf.scene;
+          model.visible = true;
+          
+          // Get the bounding box of the model
+          const box = new THREE.Box3().setFromObject(model);
+          const size = box.getSize(new THREE.Vector3());
+          const center = box.getCenter(new THREE.Vector3());
+          
+          // Calculate scale to make the model a reasonable size
+          // Target a height of about 0.6 units (smaller than before)
+          const targetHeight = 0.6;
+          const scale = targetHeight / size.y;
+          
+          // Apply a maximum scale limit to prevent overly large models
+          const maxScale = 0.3; // Reduced from 0.5
+          const finalScale = Math.min(scale, maxScale);
+          
+          // Apply base scale
+          model.scale.set(finalScale, finalScale, finalScale);
+          
+          // Recalculate bounding box after scaling
+          box.setFromObject(model);
+          box.getCenter(center);
+          box.getSize(size);
+          
+          // Position the model so it sits on top of the player box
+          // and is centered horizontally
+          model.position.set(
+            -center.x * finalScale,
+            -box.min.y * finalScale + 0.75, // Position on top of player box
+            -center.z * finalScale
+          );
+          
+          // Store the base position for later adjustments
+          model.userData.basePosition = {
+            x: model.position.x,
+            y: model.position.y,
+            z: model.position.z
+          };
+          
+          // Store the base scale for later adjustments
+          model.userData.baseScale = finalScale;
+          
+          // Apply base rotation
+          model.rotation.y = Math.PI;
+          
+          model.traverse(child => { 
+            if (child.isMesh) {
+              child.material.needsUpdate = true;
+              child.castShadow = true;
+              child.receiveShadow = true;
+            }
+          });
+          
+          player.headMesh = model;
+          player.add(model);
+          
+          // Instead of hiding the player object, hide just the geometry
+          // This keeps the player object as a container but hides its mesh
+          if (player.geometry) {
+            // Create a transparent material for the player body
+            player.material = new THREE.MeshBasicMaterial({ 
+              transparent: true, 
+              opacity: 0,
+              visible: false
+            });
+          }
+          
+          // Hide any line segments (outlines)
+          player.children.forEach(child => {
+            if (child !== model && child.type === 'LineSegments') {
+              child.visible = false;
+            }
+          });
+          
+          console.log(`Loaded head for player ${playerId} with scale ${finalScale}`);
+          
+          // Apply user's custom transform settings if this is the local player
+          if (playerId === socket.id) {
+            // Apply the saved transform values
+            applyAvatarTransform(model);
+          }
+        },
+        undefined,
+        (error) => console.error(`Error loading head for player ${playerId}:`, error)
+      );
+    }
+
+    // Create a separate function to apply the transform
+    function applyAvatarTransform(model) {
+      if (!model) return;
+      
+      // Get the base scale and position
+      const baseScale = model.userData.baseScale || 1.0;
+      const basePos = model.userData.basePosition || { x: 0, y: 0, z: 0 };
+      
+      // Apply user scale on top of base scale
+      const userScale = baseScale * avatarScale;
+      model.scale.set(userScale, userScale, userScale);
+      
+      // Apply user rotation on top of base rotation (Math.PI)
+      model.rotation.y = Math.PI + avatarRotationY;
+      
+      // Apply height adjustment
+      model.position.set(
+        basePos.x,
+        basePos.y + avatarHeight,
+        basePos.z
+      );
+      
+      console.log(`Applied transform: scale=${avatarScale}, rotation=${avatarRotationY}, height=${avatarHeight}`);
+    }
+
+    // Update the updateAvatarTransform function to use the new apply function
+    function updateAvatarTransform() {
+      if (player && player.headMesh) {
+        applyAvatarTransform(player.headMesh);
+      }
+    }
+
+    function applyRecoil() {
+      if (recoilActive) return;
+      recoilActive = true;
+      camera.position.y += 0.1;
+      camera.position.z += 0.05;
+      camera.rotation.x -= 0.05;
+      setTimeout(() => {
+        camera.position.y -= 0.1;
+        camera.position.z -= 0.05;
+        camera.rotation.x += 0.05;
+        recoilActive = false;
+      }, 100);
+    }
+
+    // Update the click event to include hit position and always show blood on hit
+    document.addEventListener('click', () => {
+      if (!isLocked || gameState !== 'active') return;
+
+      const crosshair = document.getElementById('crosshair');
+      crosshair.classList.add('active');
+      setTimeout(() => crosshair.classList.remove('active'), 100);
+      
+      gunshotSound.currentTime = 0;
+      gunshotSound.play().catch(e => console.log('Error playing gunshot:', e));
+      applyRecoil();
+
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+      
+      // Make the raycaster more precise for small objects
+      raycaster.params.Line.threshold = 0.1;
+      raycaster.params.Points.threshold = 0.1;
+      
+      // Include both player meshes and their head models
+      const hittableObjects = [];
+      for (const id in otherPlayers) {
+        const p = otherPlayers[id];
+        
+        // Log for debugging
+        console.log(`Player ${id} is on team ${p.team}, I am on team ${playerTeam}`);
+        
+        // Add the player object itself
+        hittableObjects.push(p);
+        
+        // Add all child meshes (including the head)
+        if (p.headMesh) {
+          hittableObjects.push(p.headMesh);
+          p.headMesh.traverse(child => {
+            if (child.isMesh) {
+              // Ensure each mesh has the correct metadata
+              child.userData.playerId = p.userData.id;
+              child.userData.team = p.team;
+              hittableObjects.push(child);
+            }
+          });
+        }
+      }
+
+      const intersects = raycaster.intersectObjects(hittableObjects, true);
+      
+      // Debug output for checking intersections
+      if (intersects.length > 0) {
+        console.log(`Detected ${intersects.length} intersections`);
+      } else {
+        console.log("No intersections detected");
+        
+        // Debug log for all hittable objects
+        console.log(`Hittable objects: ${hittableObjects.length}`);
+        if (hittableObjects.length > 0) {
+          console.log("First few hittable objects:", hittableObjects.slice(0, 3));
+        }
+      }
+
+      // Show tracer
+      const tracerGeo = new THREE.BufferGeometry().setFromPoints([
+        camera.getWorldPosition(new THREE.Vector3()),
+        raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(50))
+      ]);
+      const tracerMat = new THREE.LineBasicMaterial({ color: 0x0000ff });
+      const tracer = new THREE.Line(tracerGeo, tracerMat);
+      scene.add(tracer);
+      setTimeout(() => scene.remove(tracer), 100);
+
+      if (intersects.length > 0) {
+        const hit = intersects[0];
+        let hitObject = hit.object;
+        let hitPlayerId = null;
+        let hitTeam = null;
+        
+        console.log("Hit object:", hitObject);
+        
+        // Method 1: Check if the hit object has direct player ID
+        if (hitObject.userData && hitObject.userData.playerId) {
+          hitPlayerId = hitObject.userData.playerId;
+          hitTeam = hitObject.userData.team;
+          console.log(`Found player ID directly on hit object: ${hitPlayerId}`);
+        } 
+        // Method 2: Check if the hit object has parent player ID
+        else if (hitObject.userData && hitObject.userData.parentPlayerId) {
+          hitPlayerId = hitObject.userData.parentPlayerId;
+          console.log(`Found player ID via parent reference: ${hitPlayerId}`);
+        }
+        // Method 3: Check if the hit object is a player itself
+        else if (hitObject.userData && hitObject.userData.id && otherPlayers[hitObject.userData.id]) {
+          hitPlayerId = hitObject.userData.id;
+          hitTeam = hitObject.team;
+          console.log(`Hit object is a player: ${hitPlayerId}`);
+        }
+        // Method 4: Traverse up the parent chain to find the player
+        else {
+          let current = hitObject;
+          let maxAttempts = 10; // Prevent infinite loops
+          
+          while (current && current !== scene && !hitPlayerId && maxAttempts > 0) {
+            // Check for any ID property that might identify the player
+            if (current.userData && (current.userData.playerId || current.userData.id)) {
+              hitPlayerId = current.userData.playerId || current.userData.id;
+              hitTeam = current.userData.team || current.team;
+              console.log(`Found player ID via parent chain: ${hitPlayerId}`);
+              break;
+            }
+            current = current.parent;
+            maxAttempts--;
+          }
+        }
+        
+        // If we still don't have a hit team but have a player ID, look it up
+        if (hitPlayerId && !hitTeam && otherPlayers[hitPlayerId]) {
+          hitTeam = otherPlayers[hitPlayerId].team;
+        }
+        
+        // If we found a player ID, check if it's a valid target
+        if (hitPlayerId && otherPlayers[hitPlayerId]) {
+          const hitPlayer = otherPlayers[hitPlayerId];
+          hitTeam = hitTeam || hitPlayer.team;
+          
+          // Debug output
+          console.log(`Hit confirmed on player ${hitPlayerId}, team: ${hitTeam}, my team: ${playerTeam}`);
+          
+          // Check if the hit player is on a different team
+          if (hitTeam !== playerTeam) {
+            console.log(`Valid hit! Player ${hitPlayerId} on team ${hitTeam}`);
+            createBloodEffect(hit.point);
+            
+            // Log additional debug information
+            console.log(`Shooting data: My team=${playerTeam}, Target team=${hitTeam}`);
+            
+            socket.emit('shoot', { 
+              target: hitPlayerId, 
+              amount: 20, 
+              shooterTeam: playerTeam,
+              position: { x: hit.point.x, y: hit.point.y, z: hit.point.z }
+            });
+          } else {
+            console.log(`Friendly fire! Player ${hitPlayerId} on same team (${hitTeam}), no damage`);
+          }
+        } else {
+          console.log(`Hit object with no valid player ID or not a player object`);
+        }
+      }
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const speed = 0.1;
+      const oldPos = player.position.clone();
+
+      if (gameState === 'active' || gameState === 'explore') {
+        const isMoving = keys['w'] || keys['s'] || keys['a'] || keys['d'];
+        if (keys['w']) player.translateZ(-speed);
+        if (keys['s']) player.translateZ(speed);
+        if (keys['a']) player.translateX(-speed);
+        if (keys['d']) player.translateX(speed);
+
+        if (keys[' '] && velocityY === 0) velocityY = jumpForce;
+
+        if (keys['Control'] && !isCrouching) {
+          isCrouching = true;
+          player.geometry.dispose();
+          player.geometry = new THREE.BoxGeometry(0.5, crouchHeight, 0.5);
+          player.position.y -= (normalHeight - crouchHeight) / 2;
+          camera.position.y = 0.6;
+          playerLines.geometry.dispose();
+          playerLines.geometry = new THREE.EdgesGeometry(player.geometry);
+        } else if (!keys['Control'] && isCrouching) {
+          isCrouching = false;
+          player.geometry.dispose();
+          player.geometry = new THREE.BoxGeometry(0.5, normalHeight, 0.5);
+          player.position.y += (normalHeight - crouchHeight) / 2;
+          camera.position.y = 1.2;
+          playerLines.geometry.dispose();
+          playerLines.geometry = new THREE.EdgesGeometry(player.geometry);
+        }
+
+        velocityY += gravity;
+        player.position.y += velocityY;
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.set(player.position, new THREE.Vector3(0, -1, 0));
+        const obstacles = [northWall, southWall, westWall, eastWall, midWallLeft, midWallRight, longAWall, bTunnelWall, crate1, crate2, crate3, ground];
+        const intersects = raycaster.intersectObjects(obstacles);
+
+        if (intersects.length > 0) {
+          const distance = intersects[0].distance;
+          if (distance <= (isCrouching ? crouchHeight : normalHeight) / 2 + 0.1 && velocityY <= 0) {
+            player.position.y = intersects[0].point.y + (isCrouching ? crouchHeight : normalHeight) / 2;
+            velocityY = 0;
+          }
+        }
+
+        if (isMoving && velocityY === 0 && !isCrouching) {
+          bobTime += 0.1;
+          camera.position.y = 1.2 + Math.sin(bobTime * bobFrequency) * bobAmplitude;
+        } else if (!recoilActive) {
+          camera.position.y = isCrouching ? 0.6 : 1.2;
+        }
+
+        for (let obstacle of obstacles) {
+          if (checkCollision(player, obstacle)) {
+            player.position.x = oldPos.x;
+            player.position.z = oldPos.z;
+            break;
+          }
+        }
+
+        if (player.position.y < 0.75) {
+          player.position.y = 0.75;
+          velocityY = 0;
+        }
+
+        player.rotation.y = -mouseX;
+        if (!recoilActive) camera.rotation.x = -mouseY;
+
+        // Update player position on server
+        emitPlayerUpdate();
+      }
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    function checkCollision(obj1, obj2) {
+      const box1 = new THREE.Box3().setFromObject(obj1).expandByScalar(-0.1);
+      const box2 = new THREE.Box3().setFromObject(obj2);
+      return box1.intersectsBox(box2);
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    const toggleAIHeadBtn = document.getElementById('toggleAIHeadBtn');
+    const aiHeadContent = document.getElementById('aiHeadContent');
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const promptInput = document.getElementById('promptInput');
+    const sessionInput = document.getElementById('sessionInput');
+    const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
+    const generateHeadBtn = document.getElementById('generateHeadBtn');
+    const loadSessionBtn = document.getElementById('loadSessionBtn');
+    const promptInputContainer = document.getElementById('promptInputContainer');
+    const sessionInputContainer = document.getElementById('sessionInputContainer');
+    const originalButtonText = toggleAIHeadBtn.innerHTML;
+
+    // Tab functionality
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', function() {
+        // Remove active class from all tabs and contents
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        // Add active class to clicked tab
+        this.classList.add('active');
+        
+        // Show corresponding content
+        const tabName = this.getAttribute('data-tab');
+        document.getElementById(tabName + 'InputContainer').classList.add('active');
+      });
+    });
+
+    // Function to close all panels
+    function closeAllPanels() {
+      controlsPanel.style.display = 'none';
+      toggleControlsBtn.classList.remove('open');
+      toggleControlsBtn.innerHTML = 'SHOW CONTROLS <span class="toggle-icon">▼</span>';
+      
+      aiHeadContent.style.display = 'none';
+      toggleAIHeadBtn.classList.remove('open');
+      toggleAIHeadBtn.innerHTML = 'GENERATE AI AVATAR <span class="toggle-icon">▼</span>';
+      
+      // Reset positions
+      toggleControlsBtn.style.left = '230px';
+      controlsPanel.style.left = '230px';
+      aiHeadMenu.style.left = '20px';
+      aiHeadContent.style.left = '20px';
+    }
+
+    // Controls toggle
+    toggleControlsBtn.addEventListener('click', () => {
+      if (toggleControlsBtn.classList.contains('processing')) return;
+      
+      // Unlock pointer when interacting with UI
+      unlockPointer();
+      
+      const isVisible = controlsPanel.style.display !== 'none';
+      
+      // Close all panels first
+      closeAllPanels();
+      
+      // Then open this one if it was closed
+      if (!isVisible) {
+        controlsPanel.style.display = 'block';
+        toggleControlsBtn.classList.add('open');
+        toggleControlsBtn.innerHTML = 'HIDE CONTROLS <span class="toggle-icon">▼</span>';
+        adjustPositions('controls');
+      }
+    });
+
+    // AI Head toggle - update the existing event listener
+    toggleAIHeadBtn.addEventListener('click', () => {
+      if (toggleAIHeadBtn.classList.contains('processing')) return;
+      
+      // Unlock pointer when interacting with UI
+      unlockPointer();
+      
+      const isVisible = aiHeadContent.style.display !== 'none';
+      
+      // Close all panels first
+      closeAllPanels();
+      
+      // Then open this one if it was closed
+      if (!isVisible) {
+        aiHeadContent.style.display = 'block';
+        toggleAIHeadBtn.classList.add('open');
+        toggleAIHeadBtn.innerHTML = 'HIDE AI AVATAR <span class="toggle-icon">▼</span>';
+        
+        // Adjust positions after the panel is visible
+        setTimeout(() => adjustPositions('avatar'), 10);
+        
+        if (csmApiKey) {
+          apiKeyInput.value = csmApiKey;
+          generateHeadBtn.style.display = 'inline-block';
+          loadSessionBtn.style.display = 'inline-block';
+        } else {
+          generateHeadBtn.style.display = 'none';
+          loadSessionBtn.style.display = 'none';
+        }
+      }
+    });
+
+    saveApiKeyBtn.addEventListener('click', () => {
+      csmApiKey = apiKeyInput.value.trim();
+      if (csmApiKey) {
+        localStorage.setItem('csmApiKey', csmApiKey);
+        generateHeadBtn.style.display = 'inline-block';
+        loadSessionBtn.style.display = 'inline-block';
+        alert('API Key saved!');
+      }
+    });
+
+    loadSessionBtn.addEventListener('click', async () => {
+      if (!csmApiKey) return alert('Please save a CSM API Key first!');
+      const sessionId = sessionInput.value.trim();
+      if (!sessionId) return alert('Please enter a session ID');
+
+      aiHeadContent.style.display = 'none';
+      toggleAIHeadBtn.classList.add('processing');
+      toggleAIHeadBtn.classList.remove('open');
+      toggleAIHeadBtn.innerHTML = '<i class="fas fa-hourglass"></i> Loading Session...';
+
+      try {
+        const response = await axios.get(
+          `https://api.csm.ai/image-to-3d-sessions/${sessionId}`,
+          { headers: { 'x-api-key': csmApiKey } }
+        );
+        
+        if (response.data.error) {
+          throw new Error(response.data.error);
+        }
+        
+        const sessionData = response.data.data;
+        const meshUrl = sessionData.preview_mesh_url_glb || sessionData.mesh_url_glb;
+        const imageUrl = sessionData.image_url || sessionData.input_image;
+        
+        if (!meshUrl) {
+          throw new Error("No mesh URL found in session data");
+        }
+        
+        toggleAIHeadBtn.innerHTML = '<i class="fas fa-hourglass"></i> Loading 3D model...';
+        
+        // Update avatar image if available
+        if (imageUrl) {
+          document.getElementById('profileImage').src = imageUrl;
+          localStorage.setItem('generatedImageUrl', imageUrl);
+        }
+        
+        loadHeadForPlayer(player, meshUrl, socket.id);
+        localStorage.setItem('generatedMeshUrl', meshUrl);
+        
+        // Increment avatar rebirth counter
+        avatarRebirths++;
+        localStorage.setItem('avatarRebirths', avatarRebirths.toString());
+        
+        socket.emit('updateHead', { meshUrl });
+
+        toggleAIHeadBtn.innerHTML = '<i class="fas fa-check"></i> 3D Avatar Applied!';
+        setTimeout(() => {
+          toggleAIHeadBtn.classList.remove('processing');
+          toggleAIHeadBtn.innerHTML = originalButtonText;
+        }, 3000);
+        
+      } catch (error) {
+        console.error('Error loading session:', error);
+        alert('Failed to load session: ' + error.message);
+        toggleAIHeadBtn.classList.remove('processing');
+        toggleAIHeadBtn.innerHTML = originalButtonText;
+      }
+    });
+
+    generateHeadBtn.addEventListener('click', async () => {
+      if (!csmApiKey) return alert('Please save a CSM API Key first!');
+      const userPrompt = promptInput.value.trim();
+      if (!userPrompt) return alert('Please enter a prompt for the head generation');
+
+      aiHeadContent.style.display = 'none';
+      toggleAIHeadBtn.classList.add('processing');
+      toggleAIHeadBtn.innerHTML = '<i class="fas fa-hourglass"></i> Generating Head...';
+
+      try {
+        // Set a higher timeout for image-to-3D conversion
+        socket.emit('setImageProcessingTimeout', { timeout: 300000 }); // 5 minutes timeout
+        
+        const csmResponse = await axios.post(
+          'https://api.csm.ai/tti-sessions',
+          { prompt: userPrompt },
+          { headers: { 'x-api-key': csmApiKey, 'Content-Type': 'application/json' } }
+        );
+        const ttiSessionCode = csmResponse.data.data.session_code;
+
+        let imageUrl = null;
+        let attempts = 0;
+        const maxAttempts = 30;
+
+        const pollForTTICompletion = async () => {
+          if (attempts >= maxAttempts) throw new Error("Image generation timed out");
+          attempts++;
+          const statusResponse = await axios.get(
+            `https://api.csm.ai/tti-sessions/${ttiSessionCode}`,
+            { headers: { 'x-api-key': csmApiKey } }
+          );
+          if (statusResponse.data?.data?.status === 'completed') {
+            return statusResponse.data.data.image_url;
+          } else if (statusResponse.data?.data?.status === 'failed') {
+            throw new Error("Image generation failed");
+          } else {
+            toggleAIHeadBtn.innerHTML = `<i class="fas fa-hourglass"></i> Creating image... (${attempts}/30)`;
+            await new Promise(resolve => setTimeout(resolve, 10000));
+            return pollForTTICompletion();
+          }
+        };
+
+        imageUrl = await pollForTTICompletion();
+        localStorage.setItem('generatedImageUrl', imageUrl);
+        document.getElementById('profileImage').src = imageUrl;
+
+        toggleAIHeadBtn.innerHTML = '<i class="fas fa-hourglass"></i> Converting to 3D...';
+        const i23dResponse = await axios.post(
+          'https://api.csm.ai/image-to-3d-sessions',
+          {
+            image_url: imageUrl,
+            refine_speed: "fast",
+            creativity: "lowest",
+            generate_texture: true,
+            preview_mesh: "fast_sculpt"
+          },
+          { headers: { 'x-api-key': csmApiKey, 'Content-Type': 'application/json' } }
+        );
+        const i23dSessionCode = i23dResponse.data.data.session_code;
+
+        let meshUrl = null;
+        attempts = 0;
+        const maxI23DAttempts = 60; // Increased from 30 to 60 attempts
+
+        const pollForI23DCompletion = async () => {
+          if (attempts >= maxI23DAttempts) throw new Error("3D model generation timed out");
+          attempts++;
+          const statusResponse = await axios.get(
+            `https://api.csm.ai/image-to-3d-sessions/${i23dSessionCode}`,
+            { headers: { 'x-api-key': csmApiKey } }
+          );
+          if (statusResponse.data?.data?.preview_mesh_url_glb) {
+            return statusResponse.data.data.preview_mesh_url_glb;
+          } else if (statusResponse.data?.data?.status === 'refine_done' || statusResponse.data?.data?.status === 'completed') {
+            return statusResponse.data.data.mesh_url_glb || statusResponse.data.data.preview_mesh_url_glb;
+          } else if (statusResponse.data?.data?.status === 'failed') {
+            throw new Error("3D model generation failed");
+          } else {
+            toggleAIHeadBtn.innerHTML = `<i class="fas fa-hourglass"></i> Creating 3D model... (${attempts}/${maxI23DAttempts})`;
+            await new Promise(resolve => setTimeout(resolve, 15000)); // Increased from 10s to 15s
+            return pollForI23DCompletion();
+          }
+        };
+
+        meshUrl = await pollForI23DCompletion();
+        toggleAIHeadBtn.innerHTML = '<i class="fas fa-hourglass"></i> Loading 3D model...';
+        loadHeadForPlayer(player, meshUrl, socket.id);
+        localStorage.setItem('generatedMeshUrl', meshUrl);
+        
+        // Increment avatar rebirth counter
+        avatarRebirths++;
+        localStorage.setItem('avatarRebirths', avatarRebirths.toString());
+        
+        socket.emit('updateHead', { meshUrl });
+
+        toggleAIHeadBtn.innerHTML = '<i class="fas fa-check"></i> 3D Avatar Applied!';
+        setTimeout(() => {
+          toggleAIHeadBtn.classList.remove('processing');
+          toggleAIHeadBtn.innerHTML = originalButtonText;
+        }, 3000);
+      } catch (error) {
+        console.error('Error generating head:', error);
+        alert('Failed to generate head: ' + error.message);
+        toggleAIHeadBtn.classList.remove('processing');
+        toggleAIHeadBtn.innerHTML = originalButtonText;
+      }
+    });
+
+    socket.on('updateHead', (data) => {
+      if (data.id === socket.id) {
+        // Update local rebirth counter when our own head is updated
+        avatarRebirths = data.avatarRebirths || (avatarRebirths + 1);
+        localStorage.setItem('avatarRebirths', avatarRebirths.toString());
+        updatePlayerInfo();
+      }
+      
+      // Update other player's head
+      if (otherPlayers[data.id]) {
+        loadHeadForPlayer(otherPlayers[data.id], data.meshUrl, data.id);
+      }
+    });
+
+    document.getElementById('waitForNew').addEventListener('click', () => {
+      // Clear any active countdown
+      if (window.countdownInterval) {
+        clearInterval(window.countdownInterval);
+        window.countdownInterval = null;
+        
+        // Remove countdown overlay if it exists
+        const countdownOverlay = document.getElementById('countdownOverlay');
+        if (countdownOverlay && countdownOverlay.parentNode) {
+          countdownOverlay.parentNode.removeChild(countdownOverlay);
+        }
+      }
+      
+      document.getElementById('opponentLeftScreen').style.display = 'none';
+      document.getElementById('waitingScreen').style.display = 'block';
+      gameState = 'waiting';
+      socket.emit('join');
+    });
+
+    document.getElementById('freePlay').addEventListener('click', () => {
+      // Clear any active countdown
+      if (window.countdownInterval) {
+        clearInterval(window.countdownInterval);
+        window.countdownInterval = null;
+        
+        // Remove countdown overlay if it exists
+        const countdownOverlay = document.getElementById('countdownOverlay');
+        if (countdownOverlay && countdownOverlay.parentNode) {
+          countdownOverlay.parentNode.removeChild(countdownOverlay);
+        }
+      }
+      
+      document.getElementById('opponentLeftScreen').style.display = 'none';
+      socket.emit('enterFreePlay');
+    });
+
+    // Add socket event for hit
+    socket.on('hit', (data) => {
+      if (data.shooter === socket.id && data.target !== socket.id && otherPlayers[data.target]) {
+        createBloodEffect(new THREE.Vector3(data.position.x, data.position.y, data.position.z));
+      }
+    });
+
+    // Add blood effect function
+    function createBloodEffect(position) {
+      const hitPoint = position.isVector3 ? position : new THREE.Vector3(position.x, position.y, position.z);
+      const particleCount = Math.floor(Math.random() * 12) + 8;
+
+      for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'blood-particle';
+        
+        const size = Math.random() * 8 + 5;
+        particle.style.width = `${size}px`;
+        particle.style.height = `${size}px`;
+        
+        const screenPosition = hitPoint.clone().project(camera);
+        const x = (screenPosition.x * 0.5 + 0.5) * window.innerWidth;
+        const y = (-screenPosition.y * 0.5 + 0.5) * window.innerHeight;
+        
+        const angle = Math.random() * Math.PI * 2;
+        const distance = Math.random() * 40 + 15;
+        particle.style.left = `${x + Math.cos(angle) * distance}px`;
+        particle.style.top = `${y + Math.sin(angle) * distance}px`;
+        
+        document.body.appendChild(particle);
+        
+        requestAnimationFrame(() => {
+          particle.style.transform = `translateY(${Math.random() * 70 + 30}px) scale(${Math.random() * 0.5 + 0.5})`;
+          particle.style.opacity = '0';
+          setTimeout(() => particle.parentNode?.removeChild(particle), 700);
+        });
+      }
+    }
+
+    // Function to adjust positions based on which panel is open
+    function adjustPositions(openPanel) {
+      if (openPanel === 'avatar') {
+        // If avatar panel is open, move controls button to the right
+        const avatarWidth = aiHeadContent.offsetWidth;
+        const newPosition = 20 + avatarWidth + 20; // 20px spacing
+        toggleControlsBtn.style.left = `${newPosition}px`;
+        controlsPanel.style.left = `${newPosition}px`;
+      } else if (openPanel === 'controls') {
+        // If controls panel is open, no need to adjust avatar position
+        // It's already on the left
+      }
+    }
+
+    // Update pointer lock management
+    let isPointerLocked = false;
+
+    // Function to lock pointer
+    function lockPointer() {
+      if (!isPointerLocked && gameState === 'active') {
+        renderer.domElement.requestPointerLock();
+      }
+    }
+
+    // Function to unlock pointer
+    function unlockPointer() {
+      if (isPointerLocked) {
+        document.exitPointerLock();
+      }
+    }
+
+    // Listen for pointer lock change
+    document.addEventListener('pointerlockchange', () => {
+      const wasLocked = isPointerLocked;
+      isPointerLocked = document.pointerLockElement === renderer.domElement;
+      
+      // Only show hint when pointer is newly unlocked during gameplay
+      if (wasLocked && !isPointerLocked && gameState === 'active') {
+        showPointerHint(true);
+        
+        // Hide the hint after 3 seconds
+        setTimeout(() => {
+          showPointerHint(false);
+        }, 3000);
+      } else if (isPointerLocked) {
+        showPointerHint(false);
+      }
+    });
+
+    // Get the pointer hint element
+    const pointerHint = document.getElementById('pointerHint');
+
+    function showPointerHint(show) {
+      pointerHint.style.display = show ? 'block' : 'none';
+    }
+
+    // Modify the click event to handle pointer lock
+    renderer.domElement.addEventListener('click', () => {
+      if (gameState === 'active' && !isPointerLocked) {
+        lockPointer();
+        closeAllPanels();
+        showPointerHint(false);
+      }
+    });
+
+    // Add a first-time hint when the game starts
+    let hasShownInitialHint = false;
+
+    // Update the matchStart event handler
+    socket.on('matchStart', (data) => {
+      gameState = 'active';
+      matchId = data.matchId;
+      document.getElementById('waitingScreen').style.display = 'none';
+      document.getElementById('opponentLeftScreen').style.display = 'none';
+      player.position.set(playerTeam === 'green' ? -14 : 14, 0.75, playerTeam === 'green' ? -14 : 14);
+      player.health = 100;
+      updatePlayerInfo();
+      
+      // Close all panels when match starts
+      closeAllPanels();
+      toggleControlsBtn.style.display = 'block';
+      
+      // Lock pointer for gameplay
+      lockPointer();
+      
+      // Show initial hint only once per session
+      if (!hasShownInitialHint) {
+        pointerHint.innerHTML = 'Press ESC to access menus<br>WASD to move, Mouse to look, Click to shoot';
+        showPointerHint(true);
+        
+        setTimeout(() => {
+          showPointerHint(false);
+        }, 5000);
+        
+        hasShownInitialHint = true;
+      }
+    });
+
+    // Update the hit detection function to work with custom head models
+    function checkHit(shooter, target) {
+      const raycaster = new THREE.Raycaster();
+      const direction = new THREE.Vector3();
+      
+      // Get shooter's position and direction
+      const shooterPos = new THREE.Vector3();
+      shooter.getWorldPosition(shooterPos);
+      shooterPos.y += 1.2; // Adjust to eye level
+      
+      // Get shooter's direction
+      direction.set(0, 0, -1).applyQuaternion(shooter.quaternion);
+      
+      // Set up raycaster
+      raycaster.set(shooterPos, direction);
+      
+      // Check for intersections with all objects that could be hit
+      const intersects = raycaster.intersectObjects(scene.children, true);
+      
+      // Find the first intersection that is a player or player model
+      for (let i = 0; i < intersects.length; i++) {
+        const object = intersects[i].object;
+        
+        // Check if this is a player or part of a player model
+        let hitPlayer = null;
+        
+        // Check if it's a direct hit on a player mesh
+        if (object === target) {
+          hitPlayer = target;
+        } 
+        // Check if it's a hit on a player's custom head model
+        else if (object.parent && object.parent.userData && object.parent.userData.playerId) {
+          const playerId = object.parent.userData.playerId;
+          if (playerId === target.userData.playerId) {
+            hitPlayer = target;
+          }
+        }
+        
+        if (hitPlayer) {
+          return {
+            hit: true,
+            distance: intersects[i].distance,
+            point: intersects[i].point
+          };
+        }
+      }
+      
+      return { hit: false };
+    }
+
+    // Initialize health display on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      // Create health bar if it doesn't exist
+      if (!document.getElementById('healthBar')) {
+        const healthBarContainer = document.createElement('div');
+        healthBarContainer.id = 'healthBarContainer';
+        healthBarContainer.style.position = 'absolute';
+        healthBarContainer.style.bottom = '10px';
+        healthBarContainer.style.left = '50%';
+        healthBarContainer.style.transform = 'translateX(-50%)';
+        healthBarContainer.style.width = '200px';
+        healthBarContainer.style.height = '15px';
+        healthBarContainer.style.backgroundColor = '#333';
+        healthBarContainer.style.border = '2px solid #555';
+        healthBarContainer.style.borderRadius = '10px';
+        healthBarContainer.style.overflow = 'hidden';
+        healthBarContainer.style.zIndex = '100';
+        
+        const healthBar = document.createElement('div');
+        healthBar.id = 'healthBar';
+        healthBar.style.width = '100%';
+        healthBar.style.height = '100%';
+        healthBar.style.backgroundColor = '#00ff00';
+        healthBar.style.transition = 'width 0.3s ease, background-color 0.3s ease';
+        
+        healthBarContainer.appendChild(healthBar);
+        document.body.appendChild(healthBarContainer);
+      }
+      
+      // Initialize player info
+      updatePlayerInfo();
+    });
+
+    socket.on('join', (data = {}) => {
+      // This should be handled by the server, not the client
+      // Remove the matches reference and just emit the join event
+      socket.emit('join', {
+        avatarRebirths: avatarRebirths,
+        totalWins: totalWins
+      });
+    });
+
+    // When connecting, send our stats
+    socket.on('connect', () => {
+      console.log('Connected with ID:', socket.id);
+      // Send stats when connecting
+      socket.emit('join', {
+        avatarRebirths: avatarRebirths,
+        totalWins: totalWins
+      });
+    });
+
+    // Fix the localStorage handling for avatar controls and rebirth count
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log("DOM Content Loaded - Initializing variables");
+      
+      // Load values from localStorage with proper error handling
+      try {
+        avatarRebirths = parseInt(localStorage.getItem('avatarRebirths') || '0');
+        totalWins = parseInt(localStorage.getItem('totalWins') || '0');
+        avatarScale = parseFloat(localStorage.getItem('avatarScale') || '1.0');
+        avatarRotationY = parseFloat(localStorage.getItem('avatarRotationY') || '0');
+        avatarHeight = parseFloat(localStorage.getItem('avatarHeight') || '0');
+        
+        // Validate values to ensure they're reasonable
+        if (isNaN(avatarRebirths)) avatarRebirths = 0;
+        if (isNaN(totalWins)) totalWins = 0;
+        if (isNaN(avatarScale) || avatarScale <= 0) avatarScale = 1.0;
+        if (isNaN(avatarRotationY)) avatarRotationY = 0;
+        if (isNaN(avatarHeight)) avatarHeight = 0;
+        
+        console.log("Loaded values from localStorage:", { 
+          avatarRebirths, 
+          totalWins, 
+          avatarScale, 
+          avatarRotationY, 
+          avatarHeight 
+        });
+      } catch (e) {
+        console.error("Error loading from localStorage:", e);
+        avatarRebirths = 0;
+        totalWins = 0;
+        avatarScale = 1.0;
+        avatarRotationY = 0;
+        avatarHeight = 0;
+      }
+      
+      // Create avatar controls
+      createAvatarControls();
+    });
+
+    // Update the socket.on('updateHead') handler to properly track rebirths
+    socket.on('updateHead', (data) => {
+      console.log("Received updateHead event:", data);
+      
+      // Update our own rebirth count if this is for us
+      if (data.id === socket.id && data.avatarRebirths !== undefined) {
+        avatarRebirths = data.avatarRebirths;
+        console.log(`Updated local avatarRebirths to ${avatarRebirths}`);
+        localStorage.setItem('avatarRebirths', avatarRebirths.toString());
+        updatePlayerInfo();
+      }
+      
+      // Handle other players' head updates
+      if (data.id !== socket.id) {
+        console.log(`Received head update for player ${data.id}`);
+        if (otherPlayers[data.id]) {
+          loadHeadForOtherPlayer(otherPlayers[data.id], data.meshUrl, data.id, data);
+          otherPlayers[data.id].lastMeshUrl = data.meshUrl;
+        } else {
+          console.log(`Player ${data.id} not found, will update when they appear`);
+        }
+      }
+    });
+
+    // Fix the updateAvatarTransform function to properly save to localStorage
+    function updateAvatarTransform() {
+      if (player && player.headMesh) {
+        applyAvatarTransform(player.headMesh);
+        
+        // Save all values to localStorage
+        try {
+          localStorage.setItem('avatarScale', avatarScale.toString());
+          localStorage.setItem('avatarRotationY', avatarRotationY.toString());
+          localStorage.setItem('avatarHeight', avatarHeight.toString());
+          
+          console.log("Saved avatar transform to localStorage:", {
+            avatarScale,
+            avatarRotationY,
+            avatarHeight
+          });
+          
+          // Update the display values
+          const scaleValue = document.getElementById('scaleValue');
+          if (scaleValue) scaleValue.textContent = avatarScale.toFixed(1);
+          
+          const rotationValue = document.getElementById('rotationValue');
+          if (rotationValue) rotationValue.textContent = (avatarRotationY * (180/Math.PI)).toFixed(0) + '°';
+          
+          const heightValue = document.getElementById('heightValue');
+          if (heightValue) heightValue.textContent = avatarHeight.toFixed(1);
+        } catch (e) {
+          console.error("Error saving to localStorage:", e);
+        }
+      }
+    }
+
+    // Add a function to handle generating a new avatar that properly updates the rebirth count
+    function generateNewAvatar() {
+      // Increment rebirth count
+      avatarRebirths++;
+      localStorage.setItem('avatarRebirths', avatarRebirths.toString());
+      
+      // Update the display
+      updatePlayerInfo();
+      
+      // Generate new avatar logic here...
+      
+      // When sending the new mesh to the server, include the rebirth count
+      socket.emit('updateHead', { 
+        meshUrl: newMeshUrl,
+        avatarRebirths: avatarRebirths
+      });
+    }
+
+    // Update the updateScoreboard function to handle rebirth counts correctly
+    function updateScoreboard(data) {
+      const scoreboard = document.getElementById('scoreboardContent');
+      let html = `Round: ${data.round}/5<br>Green (${data.greenScore}):<br>`;
+      
+      // Add null checks for greenTeam
+      if (data.greenTeam && Array.isArray(data.greenTeam)) {
+        data.greenTeam.forEach(id => {
+          const p = data.players[id] || {};
+          const kills = p.kills || 0;
+          const deaths = p.deaths || 0;
+          
+          // Use the server-provided rebirth count if available, otherwise use local value for current player
+          let rebirths = p.avatarRebirths;
+          if (id === socket.id && (rebirths === undefined || rebirths === null)) {
+            rebirths = avatarRebirths;
+          } else if (rebirths === undefined || rebirths === null) {
+            rebirths = 0;
+          }
+          
+          const wins = p.totalWins || 0;
+          html += `${id.slice(0, 5)}: ${kills}/${deaths} 🔄${rebirths} 🏆${wins}<br>`;
+        });
+      }
+      
+      // Similar update for red team...
+      html += `Red (${data.redScore}):<br>`;
+      if (data.redTeam && Array.isArray(data.redTeam)) {
+        data.redTeam.forEach(id => {
+          const p = data.players[id] || {};
+          const kills = p.kills || 0;
+          const deaths = p.deaths || 0;
+          
+          // Use the server-provided rebirth count if available, otherwise use local value for current player
+          let rebirths = p.avatarRebirths;
+          if (id === socket.id && (rebirths === undefined || rebirths === null)) {
+            rebirths = avatarRebirths;
+          } else if (rebirths === undefined || rebirths === null) {
+            rebirths = 0;
+          }
+          
+          const wins = p.totalWins || 0;
+          html += `${id.slice(0, 5)}: ${kills}/${deaths} 🔄${rebirths} 🏆${wins}<br>`;
+        });
+      }
+      
+      scoreboard.innerHTML = html;
+      
+      // Rest of the function remains the same...
+    }
+
+    // Add a handler for server reset events
+    socket.on('serverReset', (data) => {
+      console.log('Server reset event received:', data);
+      gameJoined = false;
+      
+      // Use the existing connection overlay instead of creating a new one
+      const connectionOverlay = document.getElementById('connectionOverlay');
+      const overlayTitle = connectionOverlay.querySelector('h1');
+      const overlayMessage = connectionOverlay.querySelector('p');
+      const enterButton = document.getElementById('enterGameButton');
+      
+      // Make sure the crosshair is visible
+      const overlayCrosshair = document.getElementById('overlayCrosshair');
+      if (!overlayCrosshair) {
+        const crosshair = document.createElement('div');
+        crosshair.id = 'overlayCrosshair';
+        connectionOverlay.insertBefore(crosshair, connectionOverlay.firstChild);
+      }
+      
+      // Update the overlay content
+      overlayTitle.textContent = 'SERVER RESET';
+      overlayTitle.style.color = '#ff0000';
+      overlayMessage.textContent = data.message;
+      enterButton.style.display = 'none'; // Hide the button during reset
+      
+      // Show the overlay
+      connectionOverlay.style.display = 'flex';
+      
+      // Clean up game state
+      resetGame();
+      
+      // Reload the page after a delay
+      setTimeout(() => {
+        window.location.reload();
+      }, 5000);
+      
+      // Add countdown text
+      const countdownText = document.createElement('p');
+      countdownText.textContent = 'The page will reload in 5 seconds...';
+      countdownText.style.color = '#ffffff';
+      countdownText.style.fontSize = '16px';
+      countdownText.style.fontFamily = "'Orbitron', sans-serif";
+      countdownText.style.marginTop = '20px';
+      
+      // Add countdown text after the message
+      connectionOverlay.insertBefore(countdownText, enterButton);
+      
+      // Start countdown
+      let seconds = 5;
+      const countdownInterval = setInterval(() => {
+        seconds--;
+        if (seconds <= 0) {
+          clearInterval(countdownInterval);
+        } else {
+          countdownText.textContent = `The page will reload in ${seconds} seconds...`;
+        }
+      }, 1000);
+    });
+
+    // Add a handler for playerLeft events
+    socket.on('playerLeft', (data) => {
+      console.log(`Player ${data.id} left the game`);
+      
+      // Remove the player from the scene
+      if (otherPlayers[data.id]) {
+        console.log(`Removing player ${data.id} from scene`);
+        scene.remove(otherPlayers[data.id]);
+        delete otherPlayers[data.id];
+      }
+    });
+
+    // Add a debug visualization toggle
+    let debugMode = false;
+    
+    // Function to toggle debug visualization
+    function toggleDebugMode() {
+      debugMode = !debugMode;
+      console.log(`Debug mode: ${debugMode ? 'ON' : 'OFF'}`);
+      
+      // Update visualization for all players
+      for (const id in otherPlayers) {
+        const player = otherPlayers[id];
+        updatePlayerDebugVisualization(player, debugMode);
+      }
+    }
+    
+    // Function to update player debug visualization
+    function updatePlayerDebugVisualization(player, isDebugMode) {
+      if (!player) return;
+      
+      // Remove any existing debug visualization
+      if (player.debugHelper) {
+        player.remove(player.debugHelper);
+        player.debugHelper = null;
+      }
+      
+      if (isDebugMode) {
+        // Create a wireframe box to show the player's bounds
+        const wireframeMaterial = new THREE.MeshBasicMaterial({
+          color: player.team === 'green' ? 0x00ff00 : 0xff0000,
+          wireframe: true
+        });
+        
+        // Create a slightly larger box to make the hitbox clearly visible
+        const debugGeo = new THREE.BoxGeometry(0.6, 1.6, 0.6);
+        const debugMesh = new THREE.Mesh(debugGeo, wireframeMaterial);
+        
+        // Position it at the center of the player
+        debugMesh.position.set(0, 0, 0);
+        
+        player.add(debugMesh);
+        player.debugHelper = debugMesh;
+        
+        // Make the base player slightly visible in debug mode
+        player.material.opacity = 0.3;
+        player.material.visible = true;
+        
+        // Add debug info for the head mesh
+        if (player.headMesh) {
+          // Add a bounding box helper for the head
+          const bbox = new THREE.Box3().setFromObject(player.headMesh);
+          const helper = new THREE.Box3Helper(bbox, player.team === 'green' ? 0x00ff00 : 0xff0000);
+          player.add(helper);
+          
+          // Store for later removal
+          player.headDebugHelper = helper;
+        }
+      } else {
+        // Hide the player base in normal mode
+        player.material.opacity = 0;
+        player.material.visible = false;
+        
+        // Remove head debug helper if it exists
+        if (player.headDebugHelper) {
+          player.remove(player.headDebugHelper);
+          player.headDebugHelper = null;
+        }
+      }
+    }
+    
+    // Add key binding for debug mode (press 'F3' to toggle)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'F3') {
+        toggleDebugMode();
+      }
+    });
+    
+    // Update addOtherPlayer to include debug visualization
+    const originalAddOtherPlayer = addOtherPlayer;
+    addOtherPlayer = function(id, data) {
+      const player = originalAddOtherPlayer(id, data);
+      if (player && debugMode) {
+        updatePlayerDebugVisualization(player, true);
+      }
+      return player;
+    };
+
+    // Add a visual indicator for successful hits 
+    socket.on('hit', (data) => {
+      // If we're the shooter, show a hit marker
+      if (data.shooter === socket.id) {
+        const hitMarker = document.getElementById('hitMarker');
+        if (hitMarker) {
+          hitMarker.style.display = 'block';
+          hitMarker.style.animation = 'none';
+          hitMarker.offsetHeight; // Trigger reflow
+          hitMarker.style.animation = 'hitMarkerFade 0.5s forwards';
+          
+          setTimeout(() => {
+            hitMarker.style.display = 'none';
+          }, 500);
+        }
+        
+        // Play hit sound
+        if (window.hitSound) {
+          window.hitSound.currentTime = 0;
+          window.hitSound.play().catch(e => console.log('Error playing hit sound:', e));
+        }
+      }
+      
+      // Create a visual effect at the hit position
+      if (data.position) {
+        const hitPos = new THREE.Vector3(data.position.x, data.position.y, data.position.z);
+        createHitEffect(hitPos);
+      }
+    });
+    
+    // Create a hit effect at the specified position
+    function createHitEffect(position) {
+      // Create a small sphere at the hit position
+      const geometry = new THREE.SphereGeometry(0.1, 8, 8);
+      const material = new THREE.MeshBasicMaterial({ 
+        color: 0xffff00,
+        transparent: true,
+        opacity: 1.0
+      });
+      
+      const hitMarker = new THREE.Mesh(geometry, material);
+      hitMarker.position.copy(position);
+      scene.add(hitMarker);
+      
+      // Animate the hit marker
+      const startTime = Date.now();
+      const duration = 500; // 500ms
+      
+      function animateHitMarker() {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1.0);
+        
+        hitMarker.scale.set(1 + progress, 1 + progress, 1 + progress);
+        material.opacity = 1.0 - progress;
+        
+        if (progress < 1.0) {
+          requestAnimationFrame(animateHitMarker);
+        } else {
+          scene.remove(hitMarker);
+          geometry.dispose();
+          material.dispose();
+        }
+      }
+      
+      animateHitMarker();
+    }
+    
+    // Add CSS for hit marker
+    const style = document.createElement('style');
+    style.textContent = `
+      #hitMarker {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 40px;
+        height: 40px;
+        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><path d="M19 5L21 5L21 35L19 35Z" fill="white"/><path d="M5 19L35 19L35 21L5 21Z" fill="white"/></svg>');
+        display: none;
+        pointer-events: none;
+        z-index: 1000;
+      }
+      
+      @keyframes hitMarkerFade {
+        0% { opacity: 1; transform: translate(-50%, -50%) scale(0.8); }
+        50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+        100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    // Add hit marker element
+    const hitMarker = document.createElement('div');
+    hitMarker.id = 'hitMarker';
+    document.body.appendChild(hitMarker);
+
+    // Add handler for team synchronization
+    socket.on('teamSync', (data) => {
+      console.log(`Received team sync from server: ${data.team}`);
+      if (data.team !== playerTeam) {
+        console.log(`Updating team from ${playerTeam} to ${data.team}`);
+        setPlayerTeam(data.team);
+        
+        // Update player's userData to include correct team information
+        player.userData = player.userData || {};
+        player.userData.id = socket.id;
+        player.team = data.team;
+        
+        // Update UI with team information
+        updatePlayerInfo();
+      }
+    });
+    
+    // Add periodic team sync check
+    setInterval(() => {
+      if (gameState === 'active' && playerTeam) {
+        // Re-sync team occasionally to ensure consistency
+        socket.emit('requestTeamSync');
+      }
+    }, 10000); // Every 10 seconds
+
+    // Define gameJoined variable once
+    let gameJoined = false;
+    
+    // Add handler for disconnection and reconnection
+    socket.on('disconnect', () => {
+      console.log('Disconnected from server');
+      gameJoined = false;
+      
+      // Show a disconnected message in the overlay
+      const connectionOverlay = document.getElementById('connectionOverlay');
+      const overlayTitle = connectionOverlay.querySelector('h1');
+      const overlayMessage = connectionOverlay.querySelector('p');
+      const enterButton = document.getElementById('enterGameButton');
+      
+      // Make sure the crosshair is visible
+      const overlayCrosshair = document.getElementById('overlayCrosshair');
+      if (!overlayCrosshair) {
+        const crosshair = document.createElement('div');
+        crosshair.id = 'overlayCrosshair';
+        connectionOverlay.insertBefore(crosshair, connectionOverlay.firstChild);
+      }
+      
+      overlayTitle.textContent = 'DISCONNECTED';
+      overlayMessage.textContent = 'You have been disconnected from the server. Click the button below to reconnect.';
+      enterButton.textContent = 'Reconnect';
+      
+      connectionOverlay.style.display = 'flex';
+    });
+    
+    socket.on('connect_error', (error) => {
+      console.log('Connection error:', error);
+      gameJoined = false;
+      
+      // Show a connection error message in the overlay
+      const connectionOverlay = document.getElementById('connectionOverlay');
+      const overlayTitle = connectionOverlay.querySelector('h1');
+      const overlayMessage = connectionOverlay.querySelector('p');
+      const enterButton = document.getElementById('enterGameButton');
+      
+      // Make sure the crosshair is visible
+      const overlayCrosshair = document.getElementById('overlayCrosshair');
+      if (!overlayCrosshair) {
+        const crosshair = document.createElement('div');
+        crosshair.id = 'overlayCrosshair';
+        connectionOverlay.insertBefore(crosshair, connectionOverlay.firstChild);
+      }
+      
+      overlayTitle.textContent = 'CONNECTION ERROR';
+      overlayMessage.textContent = 'Failed to connect to the game server. Please check your internet connection and try again.';
+      enterButton.textContent = 'Retry Connection';
+      
+      connectionOverlay.style.display = 'flex';
+    });
+    
+    // Add handler for reconnection
+    socket.on('reconnect', (attemptNumber) => {
+      console.log(`Reconnected after ${attemptNumber} attempts`);
+      
+      // Update the overlay for reconnection
+      const connectionOverlay = document.getElementById('connectionOverlay');
+      const overlayTitle = connectionOverlay.querySelector('h1');
+      const overlayMessage = connectionOverlay.querySelector('p');
+      const enterButton = document.getElementById('enterGameButton');
+      
+      // Make sure the crosshair is visible
+      const overlayCrosshair = document.getElementById('overlayCrosshair');
+      if (!overlayCrosshair) {
+        const crosshair = document.createElement('div');
+        crosshair.id = 'overlayCrosshair';
+        connectionOverlay.insertBefore(crosshair, connectionOverlay.firstChild);
+      }
+      
+      overlayTitle.textContent = 'COMBAT SIMULATOR';
+      overlayMessage.textContent = 'Ready to re-enter the battlefield? Click the button below to join the game world.';
+      enterButton.textContent = 'Enter Game World';
+      
+      connectionOverlay.style.display = 'flex';
+    });
+    
+    // ... existing code ...
+    
+    // Also handle server reset events
+    socket.on('serverReset', (data) => {
+      console.log('Server reset event received:', data);
+      gameJoined = false;
+      
+      // Create a notification overlay
+      const resetOverlay = document.createElement('div');
+      resetOverlay.style.position = 'fixed';
+      resetOverlay.style.top = '0';
+      resetOverlay.style.left = '0';
+      resetOverlay.style.width = '100%';
+      resetOverlay.style.height = '100%';
+      resetOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+      resetOverlay.style.color = '#ff0000';
+      resetOverlay.style.display = 'flex';
+      resetOverlay.style.flexDirection = 'column';
+      resetOverlay.style.justifyContent = 'center';
+      resetOverlay.style.alignItems = 'center';
+      resetOverlay.style.zIndex = '2000';
+      resetOverlay.style.fontFamily = "'Orbitron', sans-serif";
+      
+      resetOverlay.innerHTML = `
+        <h2 style="color: #ff0000; font-size: 24px;">SERVER RESET</h2>
+        <p style="color: #ffffff; font-size: 18px;">${data.message}</p>
+        <p style="color: #ffffff; font-size: 16px;">The page will reload in 5 seconds...</p>
+      `;
+      
+      document.body.appendChild(resetOverlay);
+      
+      // Clean up game state
+      resetGame();
+      
+      // Reload the page after a delay
+      setTimeout(() => {
+        window.location.reload();
+      }, 5000);
+    });
+    
+    // Add event listener for the enter game button
+    document.getElementById('enterGameButton').addEventListener('click', () => {
+      if (!gameJoined) {
+        gameJoined = true;
+        document.getElementById('connectionOverlay').style.display = 'none';
+        
+        // Now join the game
+        socket.emit('join', {
+          avatarRebirths: avatarRebirths,
+          totalWins: totalWins
+        });
+        
+        console.log('Joining game world...');
+      }
+    });
+  </script>
+</body>
+</html>
