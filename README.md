@@ -1,2 +1,7 @@
 # 3dfps-vibes
-Vibe Coding a 3D Game using AI
+To start, simply type: 
+```
+node server.js
+```
+
+Tutorial Post: 
